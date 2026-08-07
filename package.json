@@ -1,0 +1,33 @@
+{
+  "name": "insightreply",
+  "version": "1.0.0",
+  "private": true,
+  "description": "InsightReply by Hadesh.ai — AI-powered LinkedIn comment assistant (Chrome extension + backend).",
+  "packageManager": "pnpm@10.32.1",
+  "scripts": {
+    "dev": "pnpm --parallel --filter @insightreply/extension --filter @insightreply/api dev",
+    "dev:extension": "pnpm --filter @insightreply/extension dev",
+    "dev:sidepanel": "pnpm --filter @insightreply/extension dev:sidepanel",
+    "dev:api": "pnpm --filter @insightreply/api dev",
+    "build": "pnpm --filter @insightreply/shared build && pnpm --filter @insightreply/api build && pnpm --filter @insightreply/extension build",
+    "build:extension": "pnpm --filter @insightreply/shared build && pnpm --filter @insightreply/extension build",
+    "build:api": "pnpm --filter @insightreply/shared build && pnpm --filter @insightreply/api build",
+    "test": "pnpm --filter @insightreply/shared build && pnpm --parallel --filter @insightreply/api --filter @insightreply/extension --filter @insightreply/shared test",
+    "test:unit": "pnpm --filter @insightreply/shared build && pnpm --filter @insightreply/api test && pnpm --filter @insightreply/extension test && pnpm --filter @insightreply/shared test",
+    "test:smoke": "pnpm --filter @insightreply/extension test:smoke",
+    "lint": "pnpm --parallel --filter @insightreply/* lint",
+    "typecheck": "pnpm --parallel --filter @insightreply/* typecheck",
+    "format": "prettier --write \"**/*.{ts,tsx,js,mjs,cjs,json,md,html,css}\"",
+    "format:check": "prettier --check \"**/*.{ts,tsx,js,mjs,json,md,html,css}\"",
+    "package:extension": "pnpm --filter @insightreply/extension package:extension",
+    "icons": "pnpm --filter @insightreply/extension icons"
+  },
+  "devDependencies": {
+    "prettier": "^3.5.3",
+    "typescript": "^5.8.3"
+  },
+  "engines": {
+    "node": ">=20.11.0",
+    "pnpm": ">=9.0.0"
+  }
+}

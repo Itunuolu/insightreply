@@ -1,0 +1,46 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-navy-900 text-slate-100 antialiased;
+  font-family:
+    'Inter',
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    Roboto,
+    'Helvetica Neue',
+    Arial,
+    sans-serif;
+}
+
+::selection {
+  background: rgba(212, 175, 55, 0.35);
+}
+
+/* Accessible focus outline across the panel */
+:focus-visible {
+  outline: 2px solid #e8c95e;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Thin scrollbars for a compact panel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-thumb {
+  background: #253256;
+  border-radius: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}

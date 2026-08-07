@@ -1,0 +1,49 @@
+{
+  "name": "@insightreply/extension",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @insightreply/shared build && node scripts/build-extension.mjs --watch",
+    "dev:sidepanel": "vite --config vite.sidepanel.config.ts",
+    "build": "pnpm --filter @insightreply/shared build && node scripts/generate-icons.mjs && node scripts/build-extension.mjs",
+    "icons": "node scripts/generate-icons.mjs",
+    "package:extension": "node scripts/package-extension.mjs",
+    "test": "pnpm --filter @insightreply/shared build && vitest run",
+    "test:smoke": "node ../../scripts/ensure-shared.mjs && node scripts/build-extension.mjs && playwright test --config test/smoke/playwright.config.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,html,css}\""
+  },
+  "dependencies": {
+    "@insightreply/shared": "workspace:*",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "zod": "^3.25.76"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.30.0",
+    "@playwright/test": "^1.53.0",
+    "@types/chrome": "0.0.268",
+    "@types/node": "^24.0.0",
+    "@types/react": "^19.1.8",
+    "@types/react-dom": "^19.1.6",
+    "@vitejs/plugin-react": "^4.5.1",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.30.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.20",
+    "globals": "^16.2.0",
+    "jsdom": "^26.1.0",
+    "postcss": "^8.5.3",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.36.0",
+    "vite": "^6.3.5",
+    "vitest": "^3.2.4"
+  },
+  "engines": {
+    "node": ">=20.11.0"
+  }
+}
