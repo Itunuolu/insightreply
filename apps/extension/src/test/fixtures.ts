@@ -93,6 +93,19 @@ export const POST_WITH_PREFILLED_EDITOR = `
 </div>
 `;
 
+/** Modules the 2026 LinkedIn post-detail rewrite (CSS-in-JS hashed classes + data-view-name). */
+export const FEED_POST_2026 = `
+<div data-view-name="feed-full-update" data-urn="urn:li:activity:2026010101">
+  <div data-view-name="feed-actor-title">Grace Hopper</div>
+  <div data-testid="expandable-text-box">
+    We moved to a weekly cadence and realised retained users finish the core workflow within the first week.
+  </div>
+  <div data-view-name="feed-social-actions">
+    <button data-view-name="feed-action-item" aria-label="Comment">Comment</button>
+  </div>
+</div>
+`;
+
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = innerHtml;

@@ -11,6 +11,7 @@ import {
 import {
   FE_POST_TESTDATA,
   FEED_CONTAINER,
+  FEED_POST_2026,
   FEED_POST_CLASSIC,
   POLL_POST,
   TRUNCATED_POST,
@@ -105,7 +106,7 @@ describe('isPostTruncated', () => {
 });
 
 describe('extractPostData', () => {
-  it('returns a validated post with author, text and url', () => {
+it('returns a validated post with author, text and url', () => {
     const root = FEED_CONTAINER(FEED_POST_CLASSIC);
     const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
     const result = extractPostData(container);
@@ -117,6 +118,22 @@ describe('extractPostData', () => {
     });
     expect(result.post?.postText).toContain('analytics dashboard');
     expect(result.post?.selectedAt).toBeTruthy();
+  });
+
+  it('extracts from the 2026 post-detail layout (data-view-name)', () => {
+    const root = FEED_CONTAINER(FEED_POST_2026);
+    const containers = findPostContainers(root);
+    expect(containers).toHaveLength(1);
+
+    const container = containers[0]!;
+    const result = extractPostData(container);
+    expect(result.error).toBeUndefined();
+    expect(result.post).toMatchObject({
+      postId: 'urn:li:activity:2026010101',
+      authorName: 'Grace Hopper',
+      truncated: false,
+    });
+    expect(result.post?.postText).toContain('weekly cadence');
   });
 
   it('flags truncated posts without extracting', () => {

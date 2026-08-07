@@ -3,7 +3,7 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FEED_POST_CLASSIC, FE_POST_TESTDATA, POST_WITH_OPEN_EDITOR, TRUNCATED_POST } from '../../src/test/fixtures.js';
+import { FEED_POST_2026, FEED_POST_CLASSIC, FE_POST_TESTDATA, POST_WITH_OPEN_EDITOR, TRUNCATED_POST } from '../../src/test/fixtures.js';
 
 const EXTENSION_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist-extension');
 
@@ -96,6 +96,7 @@ test.describe('InsightReply extension smoke test', () => {
     const fixture = [
       FEED_POST_CLASSIC,
       FE_POST_TESTDATA,
+      FEED_POST_2026,
       TRUNCATED_POST,
       POST_WITH_OPEN_EDITOR,
     ].join('\n');
@@ -105,7 +106,7 @@ test.describe('InsightReply extension smoke test', () => {
     // 1. Button injection, exactly one per eligible post (debounced scan).
     await expect
       .poll(async () => page.locator('button.insightreply-button').count(), { timeout: 5_000 })
-      .toBe(4);
+      .toBe(5);
 
     // 2. No post content is transmitted before a click.
     const messagesBefore = await page.evaluate(() => (window as unknown as { __irBridge: { messages: unknown[] } }).__irBridge.messages.length);

@@ -8,16 +8,19 @@
 
 /** Candidate containers for a single feed post or post page. */
 export const POST_CONTAINER_SELECTORS: string[] = [
+  '[data-view-name="feed-full-update"]',
   'div.feed-shared-update-v2',
   'article.feed-shared-update-v2',
   'div[data-urn^="urn:li:activity"]',
   'div[data-id^="urn:li:activity"]',
-  'div.feed-shared-update-v2__control-menu-container',
   'div[data-activity-urn^="urn:li:activity"]',
+  'div[data-urn^="urn:li:aggregatedShare"]',
+  'div[data-id^="urn:li:aggregatedShare"]',
 ];
 
 /** Elements that hold the post body text. */
 export const POST_TEXT_SELECTORS: string[] = [
+  '[data-testid="expandable-text-box"]',
   '[data-testid="main-feed-activity-card__commentary"]',
   '.feed-shared-inline-show-more-text',
   '.update-components-text',
@@ -28,6 +31,7 @@ export const POST_TEXT_SELECTORS: string[] = [
 
 /** Elements that hold the author display name. */
 export const AUTHOR_NAME_SELECTORS: string[] = [
+  '[data-view-name="feed-actor-title"]',
   'span.update-components-actor__name',
   'a.update-components-actor__name',
   '[data-testid="main-feed-activity-card__actor-name"]',
@@ -38,6 +42,7 @@ export const AUTHOR_NAME_SELECTORS: string[] = [
 
 /** Controls that open the comment editor ("Comment" action). */
 export const COMMENT_ACTION_SELECTORS: string[] = [
+  '[data-view-name="feed-action-item"][aria-label*="Comment" i]',
   'button[aria-label*="Comment" i]',
   'button[aria-label*="comment" i]',
   '[data-control-name="comment"]',
@@ -57,6 +62,7 @@ export const COMMENT_EDITOR_SELECTORS: string[] = [
 
 /** The engagement bar under a post (where the button is anchored). */
 export const ENGAGEMENT_BAR_SELECTORS: string[] = [
+  '[data-view-name="feed-social-actions"]',
   '[data-testid="main-feed-activity-card__social-actions"]',
   '.feed-shared-social-actions',
   '.feed-shared-social-action-bar',
@@ -65,9 +71,9 @@ export const ENGAGEMENT_BAR_SELECTORS: string[] = [
 
 /** "See more" expand control inside a post. */
 export const SEE_MORE_SELECTORS: string[] = [
+  '[data-testid="feed-shared-inline-show-more-text__button"]',
   '.feed-shared-inline-show-more-text__button',
   'button.feed-shared-inline-show-more-text__more-link',
-  '[data-testid="feed-shared-inline-show-more-text__button"]',
 ];
 
 /** Anchor used to mark a post container as already handled by InsightReply. */
