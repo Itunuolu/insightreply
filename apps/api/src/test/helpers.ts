@@ -7,6 +7,7 @@ export function makeTestEnv(overrides: Partial<Env> = {}): Env {
     OPENAI_API_KEY: 'test-key',
     OPENAI_BASE_URL: 'https://api.openai.com/v1',
     OPENAI_TRANSPORT: 'responses',
+    OPENAI_RESPONSE_FORMAT: 'json_schema',
     OPENAI_MODEL: 'gpt-test',
     PORT: 8787,
     ALLOWED_EXTENSION_ORIGIN: '',

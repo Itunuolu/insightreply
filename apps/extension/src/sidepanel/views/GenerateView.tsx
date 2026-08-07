@@ -15,6 +15,8 @@ export function GenerateView() {
   const { selectedPost, compose, generationStatus, generationError, result, drafts, settings } =
     state;
 
+  const hasPost = Boolean(selectedPost);
+
   return (
     <div className="flex flex-col gap-4">
       <PostPreview />
@@ -59,12 +61,24 @@ export function GenerateView() {
 
       <Button
         variant="primary"
-        disabled={!selectedPost}
+        disabled={generationStatus === 'generating'}
         onClick={() => void runGeneration()}
         className="w-full"
       >
-        Generate {settings.suggestionCount} Comments
+        {hasPost ? (
+          <>Generate {settings.suggestionCount} Comments</>
+        ) : (
+          <>Generate Comments</>
+        )}
       </Button>
+
+      {!hasPost && (
+        <p className="text-center text-xs font-medium text-slate-400">
+          Select a post on LinkedIn first — click{' '}
+          <span className="font-semibold text-gold-light">✨ AI Comment</span> on any post. The
+          button appears near a post's engagement bar.
+        </p>
+      )}
 
       <p className="text-center text-[11px] leading-relaxed text-slate-400">
         InsightReply generates writing suggestions. Review every comment before posting.
@@ -78,8 +92,12 @@ export function GenerateView() {
 
       {generationStatus === 'idle' && result === null && (
         <EmptyState
-          title="Ready when you are"
-          body="Choose a tone and length, then generate comment suggestions for the selected post."
+          title={hasPost ? 'Ready when you are' : 'Start with a LinkedIn post'}
+          body={
+            hasPost
+              ? 'Choose a tone and length, then generate comment suggestions for the selected post.'
+              : 'Open LinkedIn, click the ✨ AI Comment button on a post, and the panel will fill in here automatically.'
+          }
         />
       )}
 
