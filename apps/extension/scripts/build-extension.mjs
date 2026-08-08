@@ -17,10 +17,38 @@ const OUT = join(ROOT, 'dist-extension');
 const ICONS_SRC = join(ROOT, 'src', 'assets', 'icons');
 const isWatch = process.argv.includes('--watch');
 
+/**
+ * Backend URL baked into the build as the out-of-the-box default.
+ *
+ * A published build must not ship `http://localhost:8787`: every user who
+ * installs from the Web Store would get "backend could not be reached" until
+ * they ran a Node server themselves. Set IR_DEFAULT_BACKEND_URL to your
+ * deployed HTTPS backend when building the store package:
+ *
+ *   IR_DEFAULT_BACKEND_URL=https://api.example.com pnpm build:extension
+ *
+ * Users can still override it in Settings; this only sets the starting value.
+ */
+const DEFAULT_BACKEND_URL = process.env.IR_DEFAULT_BACKEND_URL?.trim() || 'http://localhost:8787';
+
+try {
+  const parsed = new URL(DEFAULT_BACKEND_URL);
+  if (parsed.protocol !== 'https:' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1') {
+    throw new Error('must be https:// unless it is localhost');
+  }
+} catch (err) {
+  throw new Error(`IR_DEFAULT_BACKEND_URL is not a usable backend URL (${DEFAULT_BACKEND_URL}): ${err.message}`);
+}
+
+const define = {
+  __IR_DEFAULT_BACKEND_URL__: JSON.stringify(DEFAULT_BACKEND_URL.replace(/\/+$/, '')),
+};
+
 function sidepanelConfig() {
   return {
     root: join(ROOT, 'src', 'sidepanel'),
     plugins: [react()],
+    define,
     build: {
       outDir: OUT,
       emptyOutDir: false,
@@ -38,6 +66,7 @@ function sidepanelConfig() {
 
 function scriptConfig(entry, outFile, format) {
   return {
+    define,
     build: {
       outDir: OUT,
       emptyOutDir: false,

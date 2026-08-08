@@ -167,3 +167,33 @@ describe('backend URL normalization', () => {
     expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/v1/comments/generate');
   });
 });
+
+describe('unreachable backend messages', () => {
+  it('tells the user a local backend runs on their machine', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    await expect(
+      generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'http://localhost:8787' },
+        post,
+        compose,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: expect.stringContaining('runs on this machine'),
+    });
+  });
+
+  it('names the deployed URL that could not be reached', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => { throw new TypeError('Failed to fetch'); }));
+    await expect(
+      generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+        post,
+        compose,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: expect.stringContaining('https://api.example.com'),
+    });
+  });
+});

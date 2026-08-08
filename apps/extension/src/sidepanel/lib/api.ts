@@ -10,6 +10,7 @@ import {
   generateCommentsRequestSchema,
   generateCommentsResponseSchema,
 } from '@insightreply/shared';
+import { isLocalBackend } from './config.js';
 
 export interface PanelError {
   code: string;
@@ -78,11 +79,18 @@ async function requestBackend(url: string, payload: unknown): Promise<unknown> {
       signal: AbortSignal.timeout(90_000),
     });
   } catch (err) {
-    const message =
-      err instanceof DOMException && err.name === 'TimeoutError'
-        ? 'The AI took too long to respond. Please try again.'
-        : 'The InsightReply backend could not be reached. Is it running? Check the backend URL in Settings.';
-    throw panelError('NETWORK_ERROR', message);
+    if (err instanceof DOMException && err.name === 'TimeoutError') {
+      throw panelError('NETWORK_ERROR', 'The AI took too long to respond. Please try again.');
+    }
+    // Name the URL that failed: the most common cause is a build still pointing
+    // at a backend on the developer's own machine, which no other user can reach.
+    const target = normalizeBackendUrl(url);
+    throw panelError(
+      'NETWORK_ERROR',
+      isLocalBackend(target)
+        ? `Could not reach ${target}. That backend runs on this machine — start it, or set a deployed backend URL in Settings.`
+        : `Could not reach ${target}. Check the backend URL in Settings and that the server is running.`,
+    );
   }
 
   let body: unknown = null;

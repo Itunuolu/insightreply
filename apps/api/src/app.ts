@@ -100,11 +100,30 @@ export async function buildApp(deps: BuildAppDeps): Promise<FastifyInstance> {
 
   registerErrorHandler(app);
 
+  // Comma-separated so one deployment can serve several extension origins —
+  // typically the unpacked dev build and the published Web Store id, which are
+  // different and only the latter exists after the first upload.
+  const allowedOrigins = env.ALLOWED_EXTENSION_ORIGIN.split(',')
+    .map((value) => value.trim().replace(/\/+$/, ''))
+    .filter((value) => value.length > 0);
+
+  if (allowedOrigins.length === 0) {
+    app.log.warn(
+      'ALLOWED_EXTENSION_ORIGIN is empty: browser requests will be rejected. ' +
+        'Set it to your extension origin, e.g. chrome-extension://<id>',
+    );
+  }
+
   await app.register(cors, {
     origin(origin, callback) {
       if (!origin) return callback(null, true); // curl / non-browser clients
-      const allowed = env.ALLOWED_EXTENSION_ORIGIN;
-      if (allowed && origin === allowed) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      // Named explicitly: a mismatched id is the usual cause of a published
+      // extension failing every request, and it is invisible without this.
+      app.log.warn(
+        { origin, allowedOrigins },
+        'rejected a browser origin not in ALLOWED_EXTENSION_ORIGIN',
+      );
       return callback(new Error('Origin not allowed'), false);
     },
     methods: ['GET', 'POST', 'OPTIONS'],

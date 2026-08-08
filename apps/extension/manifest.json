@@ -6,7 +6,7 @@
   "description": "Write thoughtful, relevant LinkedIn comments. Understands only the post you select — you review and post everything yourself.",
   "author": "Hadesh.ai",
   "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
-  "host_permissions": ["https://*.linkedin.com/*", "http://localhost:8787/*"],
+  "host_permissions": ["https://*.linkedin.com/*"],
   "background": {
     "service_worker": "service-worker.js",
     "type": "module"

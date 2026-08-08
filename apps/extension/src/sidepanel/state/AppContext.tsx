@@ -14,7 +14,8 @@ import type {
   Settings,
   Tone,
 } from '@insightreply/shared';
-import { DEFAULT_SETTINGS, settingsSchema } from '@insightreply/shared';
+import { settingsSchema } from '@insightreply/shared';
+import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS } from '../lib/config.js';
 import {
   generateComments,
   regenerateSingleSuggestion,

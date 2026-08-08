@@ -6,7 +6,7 @@ This document explains every permission in `apps/extension/manifest.json`, what 
 
 ```json
 "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
-"host_permissions": ["https://*.linkedin.com/*", "http://localhost:8787/*"]
+"host_permissions": ["https://*.linkedin.com/*"]
 ```
 
 ### `storage`
@@ -34,10 +34,17 @@ Required by the Chrome Side Panel API to open the extension's own side panel fro
 
 | Pattern | Why |
 |---|---|
-| `https://*.linkedin.com/*` | The content script must run on LinkedIn feed and post pages to show the AI Comment button. |
-| `http://localhost:8787/*` | The default local backend for development. In production you may replace this with your deployed backend origin, or remove it if you prefer to rely on CORS from the panel. |
+| `https://*.linkedin.com/*` | The content script must run on LinkedIn feed and post pages to show the AI Comment button, read the post the user selects, and insert the chosen draft into that post's comment box. This is the only host permission the extension requests. |
 
-Host permission on the backend origin means requests from the extension are not subject to CORS — the backend's `ALLOWED_EXTENSION_ORIGIN` check still applies to any direct browser client.
+**Why there is no host permission for the backend.** The side panel reaches the
+configured backend with an ordinary cross-origin `fetch`, and the backend
+answers the preflight with `Access-Control-Allow-Origin` for the extension's own
+origin. Because CORS grants the access, no host permission is needed — so the
+extension does not ask for one, and users who point it at their own deployment
+do not have to grant a new permission for that host. This was verified against a
+build whose manifest lists only `https://*.linkedin.com/*`.
+
+The backend's `ALLOWED_EXTENSION_ORIGIN` allow-list still gates every browser request, so removing the host permission does not widen what the backend accepts.
 
 ## What the extension does NOT have access to
 

@@ -19,6 +19,37 @@ Work through this list before submitting InsightReply for review.
   - [ ] Truncated post shows the expand-first notice
   - [ ] Replace/Append/Cancel flow works with pre-filled editor text
 
+## 1b. Backend readiness (do this BEFORE uploading)
+
+The extension is useless without a reachable backend, and a reviewer cannot run
+`pnpm dev`. Work through this in order:
+
+- [ ] Deploy `apps/api` somewhere with HTTPS (Railway, Render, Fly.io, a VPS) and confirm `GET /health`
+- [ ] Build the store package against that URL — the default is baked in at build time:
+      ```bash
+      IR_DEFAULT_BACKEND_URL=https://your-backend.example.com pnpm build:extension && pnpm package:extension
+      ```
+      The build refuses any non-HTTPS URL other than localhost, so a dev default cannot ship by accident.
+- [ ] Confirm the zip's default is right: users who never open Settings must still be able to generate
+
+### The extension id changes when you publish
+
+The unpacked build's id and the published id are different, and the published one
+does not exist until after your first upload. Sequence:
+
+- [ ] Upload the zip as a **draft** — do not submit yet
+- [ ] Copy the extension id the dashboard assigns
+- [ ] Add it to the backend's `ALLOWED_EXTENSION_ORIGIN`, which is comma-separated so dev keeps working:
+      `ALLOWED_EXTENSION_ORIGIN=chrome-extension://<dev-id>,chrome-extension://<published-id>`
+- [ ] Redeploy the backend and confirm the preflight passes:
+      ```bash
+      curl -i -X OPTIONS https://your-backend.example.com/v1/comments/generate \
+        -H "Origin: chrome-extension://<published-id>" -H "Access-Control-Request-Method: POST"
+      ```
+      A correct response echoes `access-control-allow-origin` for that origin. If it is missing, every
+      request from the published extension will fail — the server logs a warning naming the rejected origin.
+- [ ] Only then submit for review
+
 ## 2. Store listing content
 
 - [ ] **Name:** InsightReply — AI Comment Assistant (≤ 45 chars; avoid duplicate names)

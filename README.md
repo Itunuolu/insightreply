@@ -235,7 +235,7 @@ See `docs/linkedin-selector-maintenance.md` for the workflow, including how to r
 - The backend validates every request with Zod (post ≤ 12,000 chars, perspective ≤ 500, writing profile ≤ 1,500).
 - Per-IP rate limiting (default 30 req/60 s) and restrictive CORS (only your extension origin).
 - Request bodies are never logged; error messages never contain post content or stack traces.
-- The extension uses only `storage`, `activeTab`, `scripting`, and `sidePanel` permissions; host permissions cover only `linkedin.com` and the local backend.
+- The extension uses only `storage`, `activeTab`, `scripting`, and `sidePanel` permissions, and a single host permission for `linkedin.com`. The backend is reached over CORS, so no host permission is needed for it — pointing the extension at your own deployment never asks the user to grant a new host.
 - All post content is treated as untrusted input: it is inserted as plain text (never `innerHTML`) and prompt-injection text inside posts is analysed as content, not followed as instructions.
 - See `docs/permissions-justification.md` for the full breakdown.
 
