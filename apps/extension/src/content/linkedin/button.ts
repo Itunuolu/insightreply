@@ -1,6 +1,7 @@
 import type { SelectedPost } from '@insightreply/shared';
 import {
   extractPostData,
+  findCommentAction,
   findEngagementBar,
   isMounted,
   markMounted,
@@ -15,7 +16,7 @@ const BUTTON_TEXT = '✨ AI Comment';
 export function injectActionButton(container: HTMLElement): void {
   if (isMounted(container)) return;
 
-  const anchor = findEngagementBar(container);
+  const anchor = findEngagementBar(container) ?? findCommentAction(container)?.parentElement;
   const button = createActionButton();
 
   if (anchor) {

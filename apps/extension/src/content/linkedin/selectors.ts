@@ -8,6 +8,7 @@
 
 /** Candidate containers for a single feed post or post page. */
 export const POST_CONTAINER_SELECTORS: string[] = [
+  'div[role="listitem"]',
   '[data-view-name="feed-full-update"]',
   'div.feed-shared-update-v2',
   'article.feed-shared-update-v2',
@@ -71,6 +72,7 @@ export const ENGAGEMENT_BAR_SELECTORS: string[] = [
 
 /** "See more" expand control inside a post. */
 export const SEE_MORE_SELECTORS: string[] = [
+  '[data-testid="expandable-text-button"]',
   '[data-testid="feed-shared-inline-show-more-text__button"]',
   '.feed-shared-inline-show-more-text__button',
   'button.feed-shared-inline-show-more-text__more-link',

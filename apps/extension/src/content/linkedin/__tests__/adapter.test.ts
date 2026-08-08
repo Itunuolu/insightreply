@@ -12,6 +12,7 @@ import {
   FE_POST_TESTDATA,
   FEED_CONTAINER,
   FEED_POST_2026,
+  FEED_POST_2026_TRUNCATED,
   FEED_POST_CLASSIC,
   POLL_POST,
   TRUNCATED_POST,
@@ -120,7 +121,7 @@ it('returns a validated post with author, text and url', () => {
     expect(result.post?.selectedAt).toBeTruthy();
   });
 
-  it('extracts from the 2026 post-detail layout (data-view-name)', () => {
+  it('extracts from the 2026 post-detail layout (role=listitem)', () => {
     const root = FEED_CONTAINER(FEED_POST_2026);
     const containers = findPostContainers(root);
     expect(containers).toHaveLength(1);
@@ -129,11 +130,22 @@ it('returns a validated post with author, text and url', () => {
     const result = extractPostData(container);
     expect(result.error).toBeUndefined();
     expect(result.post).toMatchObject({
-      postId: 'urn:li:activity:2026010101',
       authorName: 'Grace Hopper',
       truncated: false,
     });
+    expect(result.post?.postId).toMatch(/^urn:li:activity:insightreply-[\da-z]+$/);
     expect(result.post?.postText).toContain('weekly cadence');
+    // The inert "more" toggle must not leak into the extracted text.
+    expect(result.post?.postText).not.toContain('more');
+    expect(result.post?.postText).not.toContain('…');
+  });
+
+  it('flags collapsed 2026 posts as truncated', () => {
+    const root = FEED_CONTAINER(FEED_POST_2026_TRUNCATED);
+    const container = findPostContainers(root)[0]!;
+    const result = extractPostData(container);
+    expect(result.post).toBeNull();
+    expect(result.error).toBe('truncated');
   });
 
   it('flags truncated posts without extracting', () => {

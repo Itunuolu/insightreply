@@ -81,42 +81,73 @@ export function extractPostText(container: HTMLElement): string {
   for (const selector of POST_TEXT_SELECTORS) {
     const element = container.querySelector<HTMLElement>(selector);
     if (!element) continue;
-    const text = element.textContent?.replace(/\s+/g, ' ').trim();
+    const text = cleanPostText(element);
     if (text && text.length > 0) return text;
   }
   // Fallback: grab the container's own text but drop the action-bar noise.
-  const text = container.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+  const text = cleanPostText(container);
   return text;
+}
+
+/**
+ * Reads an element's text while stripping descendants that belong to the UI
+ * chrome (e.g. the "… more" toggle that lives inside the text box in the 2026
+ * DOM) rather than the post body itself.
+ */
+function cleanPostText(root: HTMLElement): string {
+  const clone = root.cloneNode(true) as HTMLElement;
+  for (const inert of SEE_MORE_SELECTORS) {
+    for (const el of clone.querySelectorAll<HTMLElement>(inert)) {
+      el.remove();
+    }
+  }
+  return clone.textContent?.replace(/\s+/g, ' ').trim() ?? '';
 }
 
 /**
  * Detects whether the post is truncated behind a "See more" control.
  * The wrapper class is present on both expanded and collapsed posts, so the
- * only reliable signal is a *visible* see-more button.
+ * only reliable signal is a *visible* see-more button. In the 2026 DOM the
+ * button stays in the tree but is marked aria-hidden when the post is already
+ * expanded — those are skipped.
  */
 export function isPostTruncated(container: HTMLElement): boolean {
   for (const selector of SEE_MORE_SELECTORS) {
     const button = container.querySelector<HTMLElement>(selector);
-    if (button && isVisible(button)) return true;
+    if (button && isVisible(button) && button.getAttribute('aria-hidden') !== 'true') {
+      return true;
+    }
   }
   return false;
 }
+
+/** Post id candidates found directly on the container element. */
+const POST_ID_CANDIDATES = [
+  'data-id',
+  'data-urn',
+  'data-activity-urn',
+  'componentkey',
+] as const;
 
 /** Extracts a stable-ish post id from the container (with generated fallback). */
 export function extractPostId(container: HTMLElement): string | undefined {
   const existing = container.getAttribute(POST_ID_ATTRIBUTE);
   if (existing) return existing;
 
-  const candidates = [
-    container.getAttribute('data-id'),
-    container.getAttribute('data-urn'),
-    container.getAttribute('data-activity-urn'),
-    container.getAttribute('data-urn')?.replace('urn:li:activity:', ''),
-  ];
-  for (const candidate of candidates) {
-    if (candidate && candidate.trim().length > 0) return candidate.trim();
+  for (const attribute of POST_ID_CANDIDATES) {
+    const value = container.getAttribute(attribute);
+    if (value && value.trim().length > 0) return value.trim();
   }
   return undefined;
+}
+
+/** Deterministic id derived from the post text (2026 DOM has no native id). */
+export function generatedPostId(postText: string): string {
+  let hash = 0;
+  for (let i = 0; i < Math.min(postText.length, 2000); i += 1) {
+    hash = (hash * 31 + postText.charCodeAt(i)) >>> 0;
+  }
+  return `urn:li:activity:insightreply-${hash.toString(36)}`;
 }
 
 /**
@@ -159,8 +190,15 @@ export function isUnsupportedPost(container: HTMLElement): boolean {
  * Extracts a selected post from its container. Called only when the user
  * clicks the AI Comment button for that post — never in the background.
  */
+/** True when the container carries a native LinkedIn post id. */
+function containsNativeId(container: HTMLElement): boolean {
+  return ['data-id', 'data-urn', 'data-activity-urn'].some((attribute) =>
+    Boolean(container.getAttribute(attribute)),
+  );
+}
+
 export function extractPostData(container: HTMLElement): ExtractResult {
-  const postId = extractPostId(container);
+  let postId = extractPostId(container);
   if (!postId) {
     return { post: null, error: 'no_container' };
   }
@@ -180,6 +218,12 @@ export function extractPostData(container: HTMLElement): ExtractResult {
   const truncated = isPostTruncated(container);
   if (truncated) {
     return { post: null, error: 'truncated' };
+  }
+
+  // The 2026 DOM carries no native post id; derive a stable one from the text
+  // so the selection survives the round trip to the side panel.
+  if (!containsNativeId(container)) {
+    postId = generatedPostId(postText);
   }
 
   registerPost(postId, container);

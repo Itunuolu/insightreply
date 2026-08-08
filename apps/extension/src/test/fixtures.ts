@@ -93,16 +93,38 @@ export const POST_WITH_PREFILLED_EDITOR = `
 </div>
 `;
 
-/** Modules the 2026 LinkedIn post-detail rewrite (CSS-in-JS hashed classes + data-view-name). */
+/** Models the 2026 LinkedIn post-detail rewrite (hashed classes + componentkey). */
 export const FEED_POST_2026 = `
-<div data-view-name="feed-full-update" data-urn="urn:li:activity:2026010101">
-  <div data-view-name="feed-actor-title">Grace Hopper</div>
-  <div data-testid="expandable-text-box">
-    We moved to a weekly cadence and realised retained users finish the core workflow within the first week.
+<div role="listitem" componentkey="expandedhqTYjkLbsH-b4J1o1cIgUQ86KKBnQ3g20QjevyOX10EFeedType_94fvyOOla">
+  <div class="update-components-actor">
+    <span class="update-components-actor__name">Grace Hopper</span>
   </div>
-  <div data-view-name="feed-social-actions">
-    <button data-view-name="feed-action-item" aria-label="Comment">Comment</button>
+  <span data-testid="expandable-text-box">
+    We moved to a weekly cadence. The lesson: retained users complete the core workflow within the first week.
+    <button type="button" aria-hidden="true" data-testid="expandable-text-button">
+      <span><span>…</span><span> more</span></span>
+    </button>
+  </span>
+  <div class="feed-shared-social-actions-nx">
+    <button aria-label="Comment">Comment</button>
+    <button aria-label="Like">Like</button>
+    <button aria-label="Repost">Repost</button>
   </div>
+</div>
+`;
+
+/** Collapsed 2026 post: the "more" button is a real, interactive control. */
+export const FEED_POST_2026_TRUNCATED = `
+<div role="listitem" componentkey="expandedFeedPostB58hTro3mMWXeY0Qsjevy46FxT">
+  <div class="hashed-author">
+    <span dir="auto">Alan Turing</span>
+  </div>
+  <span data-testid="expandable-text-box">
+    This is the visible start of a much longer post that LinkedIn hides behind the more control.
+    <button type="button" data-testid="expandable-text-button" aria-label="…more">
+      <span><span>…</span><span> more</span></span>
+    </button>
+  </span>
 </div>
 `;
 

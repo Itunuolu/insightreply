@@ -27,6 +27,8 @@ function scheduleScan(): void {
 }
 
 const FEED_FRAGMENT_MARKERS = [
+  '[data-testid="mainFeed"]',
+  'div[role="listitem"]',
   '[data-view-name="feed-full-update"]',
   '.feed-shared-update-v2',
   '[data-urn^="urn:li:activity"]',
