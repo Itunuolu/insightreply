@@ -34,6 +34,7 @@ account data appear in any asset.
 assets/
   brand/    insightreply-mark.svg, insightreply-lockup.svg
   store/    1280x800 screenshots, promo tiles, 128px icon, raw/ source captures
+    package/  built extension zip + BUILD-INFO.txt
   demo/     insightreply-demo.mp4, demo-poster.png, demo-feed.html
 ```
 
@@ -43,6 +44,12 @@ assets/
 | `assets/store/promo-small-440x280.png` | 440×280 | Small promo tile |
 | `assets/store/promo-marquee-1400x560.png` | 1400×560 | Marquee tile (homepage featuring) |
 | `assets/store/icon-128.png` | 128×128 | Store icon |
+| `assets/store/package/insightreply-extension.zip` | — | The extension package itself (the only file uploaded as the build) |
+
+`assets/store/package/BUILD-INFO.txt` records the version, permissions, file
+count, sha256 and — crucially — the backend URL baked into that package. A build
+pointing at localhost is indistinguishable from a shippable one until you read
+it, so check it before uploading. See `assets/store/package/README.md`.
 
 Rebuild the framed images after a copy or branding change:
 

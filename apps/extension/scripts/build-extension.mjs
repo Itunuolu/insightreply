@@ -7,7 +7,7 @@
  * Supports --watch for development.
  */
 import react from '@vitejs/plugin-react';
-import { cpSync, existsSync, mkdirSync, rmSync, watch } from 'node:fs';
+import { cpSync, existsSync, mkdirSync, rmSync, watch, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'vite';
@@ -104,7 +104,24 @@ async function runAll() {
   console.log('▶ building service worker');
   await build(scriptConfig('background/service-worker.ts', 'service-worker.js', 'es'));
   copyStatic();
-  console.log(`✓ extension built into ${OUT}`);
+  writeBuildMeta();
+  console.log(`✓ extension built into ${OUT} (backend default: ${DEFAULT_BACKEND_URL})`);
+}
+
+/**
+ * Records what went into this build, outside dist-extension/ so it is never
+ * shipped inside the extension. `package:extension` turns it into BUILD-INFO.txt
+ * beside the zip: which backend a package points at is otherwise invisible from
+ * the outside, and shipping a localhost build to the Web Store is the one
+ * mistake that breaks it for every user.
+ */
+function writeBuildMeta() {
+  const metaDir = join(ROOT, '..', '..', 'dist');
+  mkdirSync(metaDir, { recursive: true });
+  writeFileSync(
+    join(metaDir, 'build-meta.json'),
+    `${JSON.stringify({ defaultBackendUrl: DEFAULT_BACKEND_URL }, null, 2)}\n`,
+  );
 }
 
 if (isWatch) {

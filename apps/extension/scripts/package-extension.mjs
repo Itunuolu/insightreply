@@ -5,7 +5,8 @@
  * zip writer if neither is available.
  */
 import { execFileSync, execSync } from 'node:child_process';
-import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'node:fs';
+import { createWriteStream, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
 import { deflateRawSync } from 'node:zlib';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -101,6 +102,11 @@ async function main() {
     throw new Error(`dist-extension missing — run \`pnpm build:extension\` first (${SOURCE})`);
   }
   mkdirSync(OUT_DIR, { recursive: true });
+  // `zip -r` UPDATES an existing archive rather than replacing it, so without
+  // this every repackage kept the previous build's hashed bundles alongside the
+  // new ones — dead weight in the upload, and a stale bundle can carry a
+  // different baked-in backend URL than the one just built.
+  rmSync(OUT_ZIP, { force: true });
   const files = collectFiles(SOURCE);
 
   let method = 'node';
@@ -128,7 +134,55 @@ async function main() {
   if (method === 'node') {
     await writeZip(files, OUT_ZIP);
   }
+  writeBuildInfo(files);
   console.log(`✓ packaged ${files.length} files -> ${OUT_ZIP} (${method})`);
+}
+
+/**
+ * Writes BUILD-INFO.txt beside the zip.
+ *
+ * A packaged extension looks identical whether it points at a deployed backend
+ * or at a developer's laptop, and uploading the latter breaks the extension for
+ * every user who installs it. Recording the baked-in URL, the manifest details
+ * and a checksum makes that visible without unzipping.
+ */
+function writeBuildInfo(files) {
+  const manifest = JSON.parse(readFileSync(join(SOURCE, 'manifest.json'), 'utf8'));
+  const metaPath = join(OUT_DIR, 'build-meta.json');
+  const backendUrl = existsSync(metaPath)
+    ? JSON.parse(readFileSync(metaPath, 'utf8')).defaultBackendUrl
+    : 'unknown (rebuild with `pnpm build:extension`)';
+  const sha256 = createHash('sha256').update(readFileSync(OUT_ZIP)).digest('hex');
+  const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:|\/|$)/.test(backendUrl);
+
+  const lines = [
+    'InsightReply — Chrome Web Store package',
+    '',
+    `name              ${manifest.name}`,
+    `version           ${manifest.version}`,
+    `manifest_version  ${manifest.manifest_version}`,
+    `permissions       ${manifest.permissions.join(', ')}`,
+    `host_permissions  ${manifest.host_permissions.join(', ')}`,
+    '',
+    `default backend   ${backendUrl}`,
+    `files             ${files.length}`,
+    `sha256            ${sha256}`,
+    '',
+    isLocal
+      ? [
+          'DO NOT UPLOAD THIS BUILD.',
+          '',
+          'It points at a backend on the build machine, so anyone installing it from',
+          'the Web Store — including the reviewer — gets "could not be reached" the',
+          'first time they press Generate. Rebuild against your deployed backend:',
+          '',
+          '  IR_DEFAULT_BACKEND_URL=https://your-backend.example.com \\',
+          '    pnpm build:extension && pnpm package:extension',
+        ].join('\n')
+      : 'Ready to upload. Confirm the backend above is reachable over HTTPS first.',
+    '',
+  ];
+  writeFileSync(join(OUT_DIR, 'BUILD-INFO.txt'), `${lines.join('\n')}\n`);
 }
 
 main().catch((err) => {

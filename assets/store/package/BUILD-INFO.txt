@@ -1,0 +1,21 @@
+InsightReply — Chrome Web Store package
+
+name              InsightReply — AI Comment Assistant
+version           1.0.0
+manifest_version  3
+permissions       storage, activeTab, scripting, sidePanel
+host_permissions  https://*.linkedin.com/*
+
+default backend   http://localhost:8787
+files             10
+sha256            598269d8cbb2047e6bc3a9a2055a3d5063b4e46b0df73b7e2b28aedbb174ba30
+
+DO NOT UPLOAD THIS BUILD.
+
+It points at a backend on the build machine, so anyone installing it from
+the Web Store — including the reviewer — gets "could not be reached" the
+first time they press Generate. Rebuild against your deployed backend:
+
+  IR_DEFAULT_BACKEND_URL=https://your-backend.example.com \
+    pnpm build:extension && pnpm package:extension
+
