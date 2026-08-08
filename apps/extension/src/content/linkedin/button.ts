@@ -93,13 +93,12 @@ export async function handleButtonClick(
 
   button.setAttribute('disabled', 'true');
   try {
-    await dispatchSelection(result.post);
-  } catch (err) {
-    const message =
-      err instanceof Error && err.message
-        ? err.message
-        : 'Could not open the side panel. Click the extension icon instead.';
-    showToast(message);
+    const opened = await dispatchSelection(result.post);
+    if (!opened) {
+      showToast('Post selected. Open InsightReply from the toolbar icon to continue.');
+    }
+  } catch {
+    showToast('Could not open the side panel. Click the InsightReply toolbar icon instead.');
   } finally {
     button.removeAttribute('disabled');
   }
@@ -126,8 +125,12 @@ async function notifyBackgroundOfSelectionFailure(code: string): Promise<void> {
   }
 }
 
-/** Tells the service worker a post was selected; it stores it and opens the panel. */
-async function dispatchSelection(post: SelectedPost): Promise<void> {
+/**
+ * Tells the service worker a post was selected; it stores it and opens the
+ * panel. Resolves to whether the side panel actually opened — storing the
+ * selection can succeed even when Chrome refuses to open the panel.
+ */
+async function dispatchSelection(post: SelectedPost): Promise<boolean> {
   const response: unknown = await chrome.runtime.sendMessage({ type: 'IR_SELECT_POST', post });
   if (
     response &&
@@ -137,6 +140,7 @@ async function dispatchSelection(post: SelectedPost): Promise<void> {
   ) {
     throw new Error((response as { message?: string }).message ?? 'Selection could not be stored.');
   }
+  return (response as { opened?: boolean } | undefined)?.opened !== false;
 }
 
 export function showToast(message: string): void {

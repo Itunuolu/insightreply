@@ -59,10 +59,19 @@ function validateRequest(params: GenerateParams) {
   return parsed.data;
 }
 
+/**
+ * Trims trailing slashes from the configured backend URL. Pasting
+ * "http://localhost:8787/" is valid per the settings schema but would otherwise
+ * produce "…//v1/comments/generate", which the backend answers with a 404.
+ */
+export function normalizeBackendUrl(url: string): string {
+  return url.trim().replace(/\/+$/, '');
+}
+
 async function requestBackend(url: string, payload: unknown): Promise<unknown> {
   let response: Response;
   try {
-    response = await fetch(`${url}/v1/comments/generate`, {
+    response = await fetch(`${normalizeBackendUrl(url)}/v1/comments/generate`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(payload),

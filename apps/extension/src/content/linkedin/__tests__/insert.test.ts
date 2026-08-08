@@ -2,8 +2,10 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   appendEditorText,
   detectExistingText,
+  findCommentActionControl,
   findCommentEditor,
   insertComment,
+  openCommentEditor,
   replaceEditorText,
   setEditorText,
 } from '../insert.js';
@@ -11,6 +13,7 @@ import {
   FEED_CONTAINER,
   POST_WITH_OPEN_EDITOR,
   POST_WITH_PREFILLED_EDITOR,
+  POST_WITH_TIPTAP_EDITOR,
 } from '../../../test/fixtures.js';
 
 afterEach(() => {
@@ -34,11 +37,68 @@ describe('findCommentEditor', () => {
   });
 
   it('returns null when no editor is present', () => {
-    const root = FEED_CONTAINER(POST_WITH_PREFILLED_EDITOR.replace(' class="comments-comment-box__form"', ' class="x"'));
+    const root = FEED_CONTAINER(POST_WITH_PREFILLED_EDITOR);
     const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
-    const stripped = container.querySelector('.comments-comment-box__form');
-    stripped?.remove();
+    container.querySelector('.comments-comment-box__form')?.remove();
     expect(findCommentEditor(container)).toBeNull();
+  });
+
+  it('finds the 2026 TipTap comment editor (no ql-editor, no comment-box form)', () => {
+    const root = FEED_CONTAINER(POST_WITH_TIPTAP_EDITOR);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+    expect(container.querySelector('.ql-editor')).toBeNull();
+    const editor = findCommentEditor(container);
+    expect(editor).not.toBeNull();
+    expect(editor?.getAttribute('aria-label')).toBe('Text editor for creating comment');
+  });
+});
+
+describe('findCommentActionControl', () => {
+  it('never returns InsightReply\'s own button, whose aria-label contains "comment"', () => {
+    const root = FEED_CONTAINER(POST_WITH_TIPTAP_EDITOR);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+
+    const own = document.createElement('button');
+    own.className = 'insightreply-button';
+    own.setAttribute('aria-label', 'Generate AI comment suggestions with InsightReply');
+    own.textContent = '✨ AI Comment';
+    container.prepend(own);
+
+    const action = findCommentActionControl(container);
+    expect(action).not.toBeNull();
+    expect(action?.classList.contains('insightreply-button')).toBe(false);
+    expect(action?.textContent?.trim()).toBe('Comment');
+  });
+
+  it('matches a Comment control that has no aria-label at all', () => {
+    const root = FEED_CONTAINER(POST_WITH_TIPTAP_EDITOR);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+    const action = findCommentActionControl(container);
+    expect(action?.getAttribute('aria-label')).toBeNull();
+    expect(action?.textContent?.trim()).toBe('Comment');
+  });
+
+  it('does not click its own button when opening the editor', () => {
+    const root = FEED_CONTAINER(POST_WITH_TIPTAP_EDITOR);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+    container.querySelector('[data-testid="ui-core-tiptap-text-editor-wrapper"]')?.remove();
+
+    const own = document.createElement('button');
+    own.className = 'insightreply-button';
+    own.setAttribute('aria-label', 'Generate AI comment suggestions with InsightReply');
+    let ownClicks = 0;
+    own.addEventListener('click', () => { ownClicks += 1; });
+    container.prepend(own);
+
+    let commentClicks = 0;
+    const commentButton = Array.from(container.querySelectorAll('button')).find(
+      (b) => b.textContent?.trim() === 'Comment',
+    )!;
+    commentButton.addEventListener('click', () => { commentClicks += 1; });
+
+    openCommentEditor(container);
+    expect(ownClicks).toBe(0);
+    expect(commentClicks).toBe(1);
   });
 });
 

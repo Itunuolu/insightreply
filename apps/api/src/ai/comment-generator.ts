@@ -164,8 +164,12 @@ export class CommentGenerator {
     }
 
     // Trim back to the requested count (which will already de-duplicate).
+    // The tone is stamped from the request rather than taken from the model:
+    // the schema lists every tone as a valid value, so models routinely label
+    // suggestions with a tone the user never asked for.
     const suggestions = filtered.slice(0, request.preferences.suggestionCount).map((s, i) => ({
       ...s,
+      tone: request.preferences.tone,
       id: `sug_${i + 1}_${requestId.slice(0, 6)}`,
     }));
 

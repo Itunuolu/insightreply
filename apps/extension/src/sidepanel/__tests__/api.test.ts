@@ -140,3 +140,30 @@ function okResponseJson() {
     ],
   };
 }
+describe('backend URL normalization', () => {
+  it('strips a trailing slash so the request path has no double slash', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateComments({
+      settings: { ...DEFAULT_SETTINGS, backendUrl: 'http://localhost:8787/' },
+      post,
+      compose,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8787/v1/comments/generate');
+  });
+
+  it('leaves a URL without a trailing slash untouched', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateComments({
+      settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+      post,
+      compose,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/v1/comments/generate');
+  });
+});

@@ -1,8 +1,18 @@
-import { COMMENT_EDITOR_SELECTORS } from './selectors.js';
+import {
+  COMMENT_ACTION_SELECTORS,
+  COMMENT_ACTION_TEXT,
+  COMMENT_EDITOR_SELECTORS,
+  OWN_ELEMENT_CLASS,
+} from './selectors.js';
 
 /** Robust editable check (jsdom does not implement isContentEditable). */
 function isEditable(element: HTMLElement): boolean {
   return element.isContentEditable || element.getAttribute('contenteditable') === 'true';
+}
+
+/** True for elements InsightReply injected itself — never treat these as LinkedIn controls. */
+function isOwnElement(element: Element): boolean {
+  return element.classList.contains(OWN_ELEMENT_CLASS);
 }
 
 /** Finds an open comment editor inside a post container. */
@@ -18,18 +28,30 @@ export function findCommentEditor(container: HTMLElement): HTMLElement | null {
 }
 
 /**
+ * Finds LinkedIn's own "Comment" control inside a post container.
+ * The 2026 feed renders it without an aria-label, so a text match is needed;
+ * InsightReply's own button is excluded because its aria-label contains the
+ * word "comment" and would otherwise be the first (and only) match.
+ */
+export function findCommentActionControl(container: HTMLElement): HTMLElement | null {
+  for (const selector of COMMENT_ACTION_SELECTORS) {
+    const element = container.querySelector<HTMLElement>(selector);
+    if (element && !isOwnElement(element)) return element;
+  }
+  const byText = Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
+    (el) => !isOwnElement(el) && COMMENT_ACTION_TEXT.test((el.textContent ?? '').trim()),
+  );
+  return byText ?? null;
+}
+
+/**
  * Opens the comment editor by clicking LinkedIn's Comment action.
  * Returns the editor if it is already open.
  */
 export function openCommentEditor(container: HTMLElement): HTMLElement | null {
   const editor = findCommentEditor(container);
   if (editor) return editor;
-  const action = container.querySelector<HTMLElement>(
-    'button[aria-label*="Comment" i], button[aria-label*="comment" i], [data-control-name="comment"], .comments-comment-box__open-comment-box',
-  );
-  if (action) {
-    action.click();
-  }
+  findCommentActionControl(container)?.click();
   return null;
 }
 

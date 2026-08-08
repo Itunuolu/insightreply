@@ -14,9 +14,86 @@ import {
   FEED_POST_2026,
   FEED_POST_2026_TRUNCATED,
   FEED_POST_CLASSIC,
+  NESTED_FEED_ROW,
+  NON_POST_ROW,
   POLL_POST,
+  PROMOTION_ROW,
   TRUNCATED_POST,
 } from '../../../test/fixtures.js';
+
+describe('container selection', () => {
+  it('returns one container per post when the post card is nested in a listitem row', () => {
+    FEED_CONTAINER(NESTED_FEED_ROW);
+    const containers = findPostContainers();
+    expect(containers).toHaveLength(1);
+    expect(containers[0]?.getAttribute('role')).toBe('listitem');
+  });
+
+  it('ignores comment entities nested inside a post', () => {
+    FEED_CONTAINER(NESTED_FEED_ROW);
+    const containers = findPostContainers();
+    expect(containers.some((c) => c.classList.contains('comments-comment-entity'))).toBe(false);
+  });
+
+  it('ignores rows with no post body, such as connection prompts', () => {
+    FEED_CONTAINER(NON_POST_ROW);
+    expect(findPostContainers()).toHaveLength(0);
+  });
+
+  it('ignores in-app promotions even though they carry post-like markup', () => {
+    FEED_CONTAINER(PROMOTION_ROW);
+    expect(findPostContainers()).toHaveLength(0);
+  });
+});
+
+describe('2026 feed id resolution', () => {
+  it('finds a componentkey that lives on the parent of the post row', () => {
+    const root = FEED_CONTAINER(
+      '<div componentkey="expandedParentKey1"><div role="listitem">' +
+        '<span data-testid="expandable-text-box">A post whose id lives on the parent.</span>' +
+        '</div></div>',
+    );
+    const container = root.querySelector('div[role="listitem"]') as HTMLElement;
+    expect(extractPostId(container)).toBe('expandedParentKey1');
+  });
+
+  it('selects the post instead of failing when no id is on the container', () => {
+    const root = FEED_CONTAINER(
+      '<div componentkey="expandedParentKey2"><div role="listitem">' +
+        '<span data-testid="expandable-text-box">A post whose id lives on the parent.</span>' +
+        '</div></div>',
+    );
+    const container = root.querySelector('div[role="listitem"]') as HTMLElement;
+    const result = extractPostData(container);
+    expect(result.error).toBeUndefined();
+    expect(result.post?.postId).toMatch(/^urn:li:activity:/);
+    expect(result.post?.postText).toContain('id lives on the parent');
+  });
+
+  it('prefers a urn found on a descendant card over a generated id', () => {
+    FEED_CONTAINER(NESTED_FEED_ROW);
+    const container = findPostContainers()[0]!;
+    expect(extractPostData(container).post?.postId).toBe('urn:li:activity:nested_1');
+  });
+});
+
+describe('extraction hygiene', () => {
+  it('strips the connection-degree badge and collapses whitespace in author names', () => {
+    FEED_CONTAINER(NESTED_FEED_ROW);
+    const container = findPostContainers()[0]!;
+    expect(extractAuthorName(container)).toBe('Ada Lovelace');
+  });
+
+  it('never includes its own injected button text in the extracted post text', () => {
+    const root = FEED_CONTAINER(NESTED_FEED_ROW);
+    const container = root.querySelector('div[role="listitem"]') as HTMLElement;
+    const own = document.createElement('button');
+    own.className = 'insightreply-button';
+    own.textContent = '✨ AI Comment';
+    container.appendChild(own);
+    expect(extractPostText(container)).not.toContain('AI Comment');
+  });
+});
 
 afterEach(() => {
   document.body.innerHTML = '';

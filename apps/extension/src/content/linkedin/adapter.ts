@@ -2,8 +2,10 @@ import type { SelectedPost } from '@insightreply/shared';
 import {
   AUTHOR_NAME_SELECTORS,
   COMMENT_ACTION_SELECTORS,
+  COMMENT_ACTION_TEXT,
   ENGAGEMENT_BAR_SELECTORS,
   MOUNTED_ATTRIBUTE,
+  OWN_ELEMENT_CLASS,
   POST_CONTAINER_SELECTORS,
   POST_ID_ATTRIBUTE,
   POST_TEXT_SELECTORS,
@@ -50,7 +52,15 @@ function isNearby(container: HTMLElement, el: Element): boolean {
   return verticalGap <= 4;
 }
 
-/** Finds all eligible post containers currently rendered in the document. */
+/**
+ * Finds all eligible post containers currently rendered in the document.
+ *
+ * LinkedIn nests matching elements (a `div[role="listitem"]` row wrapping the
+ * post card, and comment entities that are themselves list items), so a raw
+ * match list contains several elements per post. Only the outermost match of
+ * each nest is kept: that yields exactly one button per post and drops nested
+ * comment entities, which are not posts.
+ */
 export function findPostContainers(root: ParentNode = document): HTMLElement[] {
   const seen = new Set<HTMLElement>();
   const results: HTMLElement[] = [];
@@ -62,7 +72,42 @@ export function findPostContainers(root: ParentNode = document): HTMLElement[] {
       }
     }
   }
-  return results.filter(isVisible);
+  const outermost = results.filter(
+    (element) => !results.some((other) => other !== element && other.contains(element)),
+  );
+  return outermost.filter(isVisible).filter(looksLikePost);
+}
+
+/**
+ * Post ids LinkedIn assigns to things that are not user posts (in-app
+ * promotions, upsell cards). These carry post-like markup but must not be
+ * offered as something to comment on.
+ */
+const NON_POST_URN_PATTERN = /^urn:li:(inAppPromotion|adUnit|promo)/i;
+
+/**
+ * A container qualifies as a post only when it exposes real post body text.
+ * Rows such as "People you may know", ads and connection prompts match the
+ * container selectors but have no post text, and previously received a button
+ * whose extraction fell back to scraping the row's UI chrome.
+ */
+export function looksLikePost(container: HTMLElement): boolean {
+  for (const attribute of ['data-urn', 'data-id', 'data-activity-urn']) {
+    const value = container.getAttribute(attribute);
+    if (value && NON_POST_URN_PATTERN.test(value)) return false;
+  }
+  return POST_TEXT_SELECTORS.some((selector) => Boolean(container.querySelector(selector)));
+}
+
+/**
+ * Trailing connection-degree and follow badges LinkedIn renders inside the
+ * actor block ("Ada Lovelace • 1st"). They are layout, not part of the name.
+ */
+const AUTHOR_BADGE_PATTERN = /\s*[•·|]\s*(1st|2nd|3rd\+?|following|connection)\s*$/i;
+
+/** Collapses LinkedIn's whitespace-heavy actor markup into a single-line name. */
+function cleanAuthorName(raw: string): string {
+  return raw.replace(/\s+/g, ' ').trim().replace(AUTHOR_BADGE_PATTERN, '').trim();
 }
 
 /** Extracts the author display name from a post container. */
@@ -70,8 +115,16 @@ export function extractAuthorName(container: HTMLElement): string | undefined {
   for (const selector of AUTHOR_NAME_SELECTORS) {
     const element = container.querySelector<HTMLElement>(selector);
     if (!element) continue;
-    const text = element.textContent?.trim();
-    if (text && text.length > 0 && text.length <= 200) return text;
+    const text = cleanAuthorName(element.textContent ?? '');
+    if (text.length > 0 && text.length <= 200) return text;
+  }
+  // 2026 fallback: no actor selector survives, but the post's overflow menu
+  // still names the author ("Open control menu for post by Ada Lovelace").
+  const menu = container.querySelector<HTMLElement>('[aria-label*="for post by" i]');
+  const fromMenu = menu?.getAttribute('aria-label')?.match(/for post by\s+(.+?)\s*$/i)?.[1];
+  if (fromMenu) {
+    const text = cleanAuthorName(fromMenu);
+    if (text.length > 0 && text.length <= 200) return text;
   }
   return undefined;
 }
@@ -96,7 +149,10 @@ export function extractPostText(container: HTMLElement): string {
  */
 function cleanPostText(root: HTMLElement): string {
   const clone = root.cloneNode(true) as HTMLElement;
-  for (const inert of SEE_MORE_SELECTORS) {
+  // Strip InsightReply's own injected markup first: the fallback path reads the
+  // whole container, and the button label would otherwise be sent to the AI as
+  // if it were part of the post.
+  for (const inert of [...SEE_MORE_SELECTORS, `.${OWN_ELEMENT_CLASS}`, '.insightreply-row']) {
     for (const el of clone.querySelectorAll<HTMLElement>(inert)) {
       el.remove();
     }
@@ -121,22 +177,63 @@ export function isPostTruncated(container: HTMLElement): boolean {
   return false;
 }
 
-/** Post id candidates found directly on the container element. */
-const POST_ID_CANDIDATES = [
-  'data-id',
-  'data-urn',
-  'data-activity-urn',
-  'componentkey',
-] as const;
+/** Attributes carrying a real LinkedIn urn — always preferred as the post id. */
+const URN_ATTRIBUTES = ['data-id', 'data-urn', 'data-activity-urn'] as const;
 
-/** Extracts a stable-ish post id from the container (with generated fallback). */
+/**
+ * The 2026 render key. It identifies the row but is not a urn, so it is only
+ * used when no urn can be found anywhere near the container.
+ */
+const KEY_ATTRIBUTES = ['componentkey'] as const;
+
+/** How far up the tree to look for an id before giving up. */
+const ID_ANCESTOR_DEPTH = 3;
+
+/**
+ * Extracts a stable-ish post id from the container.
+ *
+ * The id is not always on the container itself: the 2026 feed renders a bare
+ * `div[role="listitem"]` whose `componentkey` sits on the parent element, and
+ * on other surfaces the activity urn is on a descendant card. Both are checked
+ * before giving up.
+ */
 export function extractPostId(container: HTMLElement): string | undefined {
   const existing = container.getAttribute(POST_ID_ATTRIBUTE);
   if (existing) return existing;
 
-  for (const attribute of POST_ID_CANDIDATES) {
-    const value = container.getAttribute(attribute);
-    if (value && value.trim().length > 0) return value.trim();
+  const readFrom = (
+    element: Element | null | undefined,
+    attributes: readonly string[],
+  ): string | undefined => {
+    if (!element) return undefined;
+    for (const attribute of attributes) {
+      const value = element.getAttribute(attribute);
+      if (value && value.trim().length > 0) return value.trim();
+    }
+    return undefined;
+  };
+
+  // A real urn wins wherever it is found: on the row itself, or on the post
+  // card nested inside it.
+  const urnOnSelf = readFrom(container, URN_ATTRIBUTES);
+  if (urnOnSelf) return urnOnSelf;
+
+  const descendant = container.querySelector(
+    '[data-urn^="urn:li:"], [data-id^="urn:li:"], [data-activity-urn]',
+  );
+  const urnOnDescendant = readFrom(descendant, URN_ATTRIBUTES);
+  if (urnOnDescendant) return urnOnDescendant;
+
+  // No urn: fall back to the render key, which the 2026 feed puts on the
+  // element *above* the post row rather than on the row itself.
+  const keyOnSelf = readFrom(container, KEY_ATTRIBUTES);
+  if (keyOnSelf) return keyOnSelf;
+
+  let ancestor = container.parentElement;
+  for (let depth = 0; depth < ID_ANCESTOR_DEPTH && ancestor; depth += 1) {
+    const keyOnAncestor = readFrom(ancestor, KEY_ATTRIBUTES);
+    if (keyOnAncestor) return keyOnAncestor;
+    ancestor = ancestor.parentElement;
   }
   return undefined;
 }
@@ -190,18 +287,18 @@ export function isUnsupportedPost(container: HTMLElement): boolean {
  * Extracts a selected post from its container. Called only when the user
  * clicks the AI Comment button for that post — never in the background.
  */
-/** True when the container carries a native LinkedIn post id. */
-function containsNativeId(container: HTMLElement): boolean {
-  return ['data-id', 'data-urn', 'data-activity-urn'].some((attribute) =>
-    Boolean(container.getAttribute(attribute)),
-  );
+/**
+ * A LinkedIn-issued urn for this post, if one can be found. `componentkey`
+ * values are accepted as a locator by `extractPostId` but are not urns and are
+ * not stable enough to identify a post, so anything that is not a urn falls
+ * through to the text-derived id.
+ */
+function nativePostId(container: HTMLElement): string | undefined {
+  const id = extractPostId(container);
+  return id && /^urn:li:/i.test(id) ? id : undefined;
 }
 
 export function extractPostData(container: HTMLElement): ExtractResult {
-  let postId = extractPostId(container);
-  if (!postId) {
-    return { post: null, error: 'no_container' };
-  }
   if (isUnsupportedPost(container)) {
     return { post: null, error: 'unsupported_post_type' };
   }
@@ -220,11 +317,10 @@ export function extractPostData(container: HTMLElement): ExtractResult {
     return { post: null, error: 'truncated' };
   }
 
-  // The 2026 DOM carries no native post id; derive a stable one from the text
-  // so the selection survives the round trip to the side panel.
-  if (!containsNativeId(container)) {
-    postId = generatedPostId(postText);
-  }
+  // Not every surface exposes a urn (the 2026 feed exposes none on the post
+  // row), so fall back to an id derived from the text. Selection must never
+  // fail just because LinkedIn moved its identifiers.
+  const postId = nativePostId(container) ?? generatedPostId(postText);
 
   registerPost(postId, container);
 
@@ -248,13 +344,23 @@ export function findEngagementBar(container: HTMLElement): HTMLElement | null {
   return null;
 }
 
-/** Finds the "Comment" action button inside a post container. */
+/**
+ * Finds LinkedIn's "Comment" action button inside a post container.
+ * InsightReply's own button is excluded — its aria-label contains the word
+ * "comment", so it would otherwise match and the extension would anchor to
+ * (and click) itself.
+ */
 export function findCommentAction(container: HTMLElement): HTMLElement | null {
+  const isOwn = (element: Element) => element.classList.contains(OWN_ELEMENT_CLASS);
   for (const selector of COMMENT_ACTION_SELECTORS) {
     const element = container.querySelector<HTMLElement>(selector);
-    if (element && isVisible(element)) return element;
+    if (element && !isOwn(element) && isVisible(element)) return element;
   }
-  return null;
+  const byText = Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
+    (element) =>
+      !isOwn(element) && COMMENT_ACTION_TEXT.test((element.textContent ?? '').trim()) && isVisible(element),
+  );
+  return byText ?? null;
 }
 
 /** Marks a container as handled to prevent duplicate button injection. */

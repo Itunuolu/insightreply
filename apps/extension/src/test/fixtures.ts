@@ -93,6 +93,69 @@ export const POST_WITH_PREFILLED_EDITOR = `
 </div>
 `;
 
+/**
+ * Models the 2026 comment box: TipTap/ProseMirror, no `comments-comment-box__form`
+ * wrapper and no `.ql-editor`, with the Comment action carrying no aria-label.
+ */
+export const POST_WITH_TIPTAP_EDITOR = `
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:tiptap_1">
+  <div class="update-components-actor">
+    <span class="update-components-actor__name">Barbara Liskov</span>
+  </div>
+  <div class="feed-shared-inline-show-more-text">
+    <span dir="auto" class="update-components-text">Subtypes must be substitutable for their base types.</span>
+  </div>
+  <div class="_6ebd00b4">
+    <button type="button"><span>Like</span></button>
+    <button type="button"><span>Comment</span></button>
+    <button type="button"><span>Repost</span></button>
+  </div>
+  <div data-testid="ui-core-tiptap-text-editor-wrapper">
+    <div class="tiptap ProseMirror" contenteditable="true" role="textbox" dir="auto"
+         aria-label="Text editor for creating comment"></div>
+  </div>
+</div>
+`;
+
+/**
+ * A feed row where the post card is nested inside a `role="listitem"` wrapper and
+ * carries its own comment thread — both previously matched the container
+ * selectors, producing three buttons for one post.
+ */
+export const NESTED_FEED_ROW = `
+<div role="listitem" componentkey="rowKey1">
+  <div class="feed-shared-update-v2" data-urn="urn:li:activity:nested_1">
+    <div class="update-components-actor">
+      <span class="update-components-actor__name">Ada Lovelace
+        <span> • 1st</span>
+      </span>
+    </div>
+    <div class="update-components-text"><span dir="auto">The nested post body.</span></div>
+    <div class="feed-shared-social-actions"><button aria-label="Comment">Comment</button></div>
+    <div class="comments-comments-list">
+      <div role="listitem" class="comments-comment-entity">
+        <div class="update-components-text"><span dir="auto">A reply from someone else.</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+`;
+
+/** A feed row that is not a post: no post body, only a connection prompt. */
+export const NON_POST_ROW = `
+<div role="listitem" componentkey="pymkKey1">
+  <a href="/in/someone"><span dir="auto">Suggested Person</span></a>
+  <button aria-label="Invite Suggested Person to connect">Connect</button>
+</div>
+`;
+
+/** A row LinkedIn marks as an in-app promotion rather than a member post. */
+export const PROMOTION_ROW = `
+<div role="listitem" data-urn="urn:li:inAppPromotion:16343">
+  <div class="update-components-text"><span dir="auto">Try Premium free for one month.</span></div>
+</div>
+`;
+
 /** Models the 2026 LinkedIn post-detail rewrite (hashed classes + componentkey). */
 export const FEED_POST_2026 = `
 <div role="listitem" componentkey="expandedhqTYjkLbsH-b4J1o1cIgUQ86KKBnQ3g20QjevyOX10EFeedType_94fvyOOla">

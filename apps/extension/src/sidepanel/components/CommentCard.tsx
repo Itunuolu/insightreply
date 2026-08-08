@@ -1,5 +1,11 @@
 import type { ReactNode } from 'react';
+import { TONE_LABELS, type Tone } from '@insightreply/shared';
 import { useApp, type CommentDraft } from '../state/AppContext';
+
+/** Renders the human label for a tone, falling back to the raw value. */
+function toneLabel(tone: string): string {
+  return TONE_LABELS[tone as Tone] ?? tone;
+}
 
 interface CommentCardProps {
   draft: CommentDraft;
@@ -14,7 +20,7 @@ export function CommentCard({ draft, index }: CommentCardProps) {
     <article className="rounded-2xl border border-navy-600/70 bg-white p-3.5">
       <div className="flex items-center justify-between gap-2">
         <p className="text-[11px] font-semibold uppercase tracking-wider text-gold-dark">
-          {draft.tone} · suggestion {index + 1}
+          {toneLabel(draft.tone)} · suggestion {index + 1}
         </p>
         <button
           type="button"
