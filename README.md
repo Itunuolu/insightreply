@@ -1,4 +1,4 @@
-<img src="docs/brand/insightreply-lockup.svg" alt="InsightReply by Hadesh.ai" width="300">
+<img src="assets/brand/insightreply-lockup.svg" alt="InsightReply by Hadesh.ai" width="300">
 
 InsightReply is an AI-powered Chrome extension that helps you write thoughtful, relevant comments on LinkedIn posts. It reads **only** the post you deliberately select, understands its topic and context, and generates natural comment suggestions in different styles — ready for you to review, edit, and post yourself.
 
@@ -13,27 +13,49 @@ InsightReply is an AI-powered Chrome extension that helps you write thoughtful, 
 - **Full user control.** Edit, copy, regenerate, or insert a suggestion into the same post's comment editor. Nothing is ever submitted or posted automatically.
 - **Private by default.** Only the selected post + your preferences are sent to your own backend, which forwards them to the AI provider. No databases, no retention, no cookies, no profile crawling.
 
-## 2. Demo
+## 2. Screenshots & demo
 
-[![InsightReply demo](docs/demo/demo-poster.png)](docs/demo/insightreply-demo.mp4)
+| | |
+|---|---|
+| ![Select a post](assets/store/screenshot-01-select.png) | ![Tone and length](assets/store/screenshot-02-compose.png) |
+| ![Three suggestions](assets/store/screenshot-03-suggestions.png) | ![Insert into LinkedIn](assets/store/screenshot-04-insert.png) |
 
-**[▶ Watch the 65-second demo](docs/demo/insightreply-demo.mp4)** — select a post, choose a tone and
+**[▶ Watch the 65-second demo](assets/demo/insightreply-demo.mp4)** — select a post, choose a tone and
 length, generate, and insert the result into that post's comment box.
 
-The recording uses the real extension, service worker, side panel and backend. The feed itself is a
-synthetic page built from LinkedIn's own DOM structure (see `docs/demo/`), so no third-party posts or
-account data appear in it. Regenerate it against your own feed if you want a production capture.
+Everything above was captured from the real extension, service worker, side panel and backend. The
+feed is a synthetic page (`assets/demo/demo-feed.html`) built from LinkedIn's own DOM structure and
+served at a `linkedin.com` URL, so the genuine content script runs and no third-party posts or
+account data appear in any asset.
 
-### Brand assets
+### Assets
 
-| File | Use |
-|---|---|
-| [`docs/brand/insightreply-mark.svg`](docs/brand/insightreply-mark.svg) | App icon / favicon / avatar |
-| [`docs/brand/insightreply-lockup.svg`](docs/brand/insightreply-lockup.svg) | Horizontal lockup for docs and the store listing |
+```text
+assets/
+  brand/    insightreply-mark.svg, insightreply-lockup.svg
+  store/    1280x800 screenshots, promo tiles, 128px icon, raw/ source captures
+  demo/     insightreply-demo.mp4, demo-poster.png, demo-feed.html
+```
 
-The extension's PNG icons are generated from the same geometry by
-`apps/extension/scripts/generate-icons.mjs` (`pnpm icons`). Edit the mark and the script together so
-the SVG and the shipped icons stay in sync.
+| Asset | Size | Chrome Web Store use |
+|---|---|---|
+| `assets/store/screenshot-0*.png` | 1280×800 | Listing screenshots (up to 5) |
+| `assets/store/promo-small-440x280.png` | 440×280 | Small promo tile |
+| `assets/store/promo-marquee-1400x560.png` | 1400×560 | Marquee tile (homepage featuring) |
+| `assets/store/icon-128.png` | 128×128 | Store icon |
+
+Rebuild the framed images after a copy or branding change:
+
+```bash
+pnpm store:assets
+```
+
+It composes them from `assets/store/raw/` (committed UI captures) plus the brand SVG, so no backend
+or browser session is needed. Re-shoot `raw/` only when the UI itself changes. Confirm the required
+sizes in the Developer Dashboard before uploading — Google adjusts them occasionally.
+
+The extension's own PNG icons come from `apps/extension/scripts/generate-icons.mjs` (`pnpm icons`),
+which redraws the mark in pure Node. Edit the SVG and that script together so they stay in sync.
 
 ## 3. Architecture
 
@@ -85,6 +107,7 @@ insightreply/
         routes/         # /health, /v1/comments/generate
   packages/
     shared/             # Zod schemas, types, message protocol
+  assets/               # brand marks, Chrome Web Store images, demo video
   docs/                 # privacy, permissions, selector maintenance, store checklist
   dist/                 # insightreply-extension.zip (packaging output)
 ```

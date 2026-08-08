@@ -24,8 +24,18 @@ Work through this list before submitting InsightReply for review.
 - [ ] **Name:** InsightReply — AI Comment Assistant (≤ 45 chars; avoid duplicate names)
 - [ ] **Short description** (≤ 132 chars) e.g. *"Write thoughtful, relevant LinkedIn comments from the posts you choose — you review and post everything yourself."*
 - [ ] **Detailed description** (≤ 16,000 chars): what it does, how it works, user control emphasis, privacy summary, link to the privacy policy
-- [ ] **Screenshots** (1280×800 or 640×400, up to 5): side panel with preview, tone/length pickers, results with three suggestions, settings
-- [ ] **Promo tile** (440×280) and **small tile** (440×280) from the branded assets
+- [ ] **Screenshots** (1280×800, up to 5) — ready to upload in order from `assets/store/`:
+  1. `screenshot-01-select.png` — the button on a post
+  2. `screenshot-02-compose.png` — tone, length, perspective
+  3. `screenshot-03-suggestions.png` — three generated drafts
+  4. `screenshot-04-insert.png` — inserted into the comment box
+  5. `screenshot-05-privacy.png` — settings, backend and privacy
+- [ ] **Small promo tile** (440×280): `assets/store/promo-small-440x280.png`
+- [ ] **Marquee promo tile** (1400×560, only needed if you apply for homepage featuring): `assets/store/promo-marquee-1400x560.png`
+- [ ] **Store icon** (128×128): `assets/store/icon-128.png`
+- [ ] Confirm the required sizes in the Developer Dashboard before uploading — Google changes them
+      occasionally, and the dashboard is the authority
+- [ ] Regenerate any of the above with `pnpm store:assets` after a UI change
 - [ ] **Category:** Productivity; **Language:** en
 - [ ] **Homepage URL:** your product page (optional but recommended)
 
