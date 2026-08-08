@@ -9,6 +9,7 @@ import {
   replaceEditorText,
   setEditorText,
 } from '../insert.js';
+import { matchesCommentActionText } from '../selectors.js';
 import {
   FEED_CONTAINER,
   POST_WITH_OPEN_EDITOR,
@@ -171,5 +172,26 @@ describe('plain-text helpers', () => {
     const { editor } = editorFrom(POST_WITH_PREFILLED_EDITOR);
     replaceEditorText(editor, 'only this');
     expect(editor.textContent).toBe('only this');
+  });
+});
+
+describe('matchesCommentActionText', () => {
+  it('matches the Comment control however LinkedIn decorates its label', () => {
+    for (const label of ['Comment', ' comment ', '💬Comment', '💬 Comment', 'Comment 58', 'COMMENT']) {
+      expect(matchesCommentActionText(label)).toBe(true);
+    }
+  });
+
+  it('does not match a comment overflow menu or unrelated controls', () => {
+    for (const label of [
+      "View more options for Bottleneck Marketing's comment.",
+      'Comments',
+      'Add a comment',
+      'Repost',
+      '',
+      null,
+    ]) {
+      expect(matchesCommentActionText(label)).toBe(false);
+    }
   });
 });

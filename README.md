@@ -1,4 +1,4 @@
-# InsightReply by Hadesh.ai
+<img src="docs/brand/insightreply-lockup.svg" alt="InsightReply by Hadesh.ai" width="300">
 
 InsightReply is an AI-powered Chrome extension that helps you write thoughtful, relevant comments on LinkedIn posts. It reads **only** the post you deliberately select, understands its topic and context, and generates natural comment suggestions in different styles — ready for you to review, edit, and post yourself.
 
@@ -13,14 +13,27 @@ InsightReply is an AI-powered Chrome extension that helps you write thoughtful, 
 - **Full user control.** Edit, copy, regenerate, or insert a suggestion into the same post's comment editor. Nothing is ever submitted or posted automatically.
 - **Private by default.** Only the selected post + your preferences are sent to your own backend, which forwards them to the AI provider. No databases, no retention, no cookies, no profile crawling.
 
-## 2. Screenshots
+## 2. Demo
 
-| | |
+[![InsightReply demo](docs/demo/demo-poster.png)](docs/demo/insightreply-demo.mp4)
+
+**[▶ Watch the 65-second demo](docs/demo/insightreply-demo.mp4)** — select a post, choose a tone and
+length, generate, and insert the result into that post's comment box.
+
+The recording uses the real extension, service worker, side panel and backend. The feed itself is a
+synthetic page built from LinkedIn's own DOM structure (see `docs/demo/`), so no third-party posts or
+account data appear in it. Regenerate it against your own feed if you want a production capture.
+
+### Brand assets
+
+| File | Use |
 |---|---|
-| *Side panel — post preview and tone/length selectors* | *Side panel — three generated suggestions* |
-| *(placeholder — replace with `screenshots/generate.png`)* | *(placeholder — replace with `screenshots/results.png`)* |
-| *AI Comment button on a LinkedIn post* | *Settings view* |
-| *(placeholder — replace with `screenshots/button.png`)* | *(placeholder — replace with `screenshots/settings.png`)* |
+| [`docs/brand/insightreply-mark.svg`](docs/brand/insightreply-mark.svg) | App icon / favicon / avatar |
+| [`docs/brand/insightreply-lockup.svg`](docs/brand/insightreply-lockup.svg) | Horizontal lockup for docs and the store listing |
+
+The extension's PNG icons are generated from the same geometry by
+`apps/extension/scripts/generate-icons.mjs` (`pnpm icons`). Edit the mark and the script together so
+the SVG and the shipped icons stay in sync.
 
 ## 3. Architecture
 

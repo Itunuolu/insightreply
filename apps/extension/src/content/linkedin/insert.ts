@@ -1,8 +1,8 @@
 import {
   COMMENT_ACTION_SELECTORS,
-  COMMENT_ACTION_TEXT,
   COMMENT_EDITOR_SELECTORS,
   OWN_ELEMENT_CLASS,
+  matchesCommentActionText,
 } from './selectors.js';
 
 /** Robust editable check (jsdom does not implement isContentEditable). */
@@ -39,7 +39,7 @@ export function findCommentActionControl(container: HTMLElement): HTMLElement | 
     if (element && !isOwnElement(element)) return element;
   }
   const byText = Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
-    (el) => !isOwnElement(el) && COMMENT_ACTION_TEXT.test((el.textContent ?? '').trim()),
+    (el) => !isOwnElement(el) && matchesCommentActionText(el.textContent),
   );
   return byText ?? null;
 }

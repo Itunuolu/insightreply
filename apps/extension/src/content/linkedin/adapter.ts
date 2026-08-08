@@ -2,7 +2,6 @@ import type { SelectedPost } from '@insightreply/shared';
 import {
   AUTHOR_NAME_SELECTORS,
   COMMENT_ACTION_SELECTORS,
-  COMMENT_ACTION_TEXT,
   ENGAGEMENT_BAR_SELECTORS,
   MOUNTED_ATTRIBUTE,
   OWN_ELEMENT_CLASS,
@@ -10,6 +9,7 @@ import {
   POST_ID_ATTRIBUTE,
   POST_TEXT_SELECTORS,
   SEE_MORE_SELECTORS,
+  matchesCommentActionText,
 } from './selectors.js';
 
 export type ExtractErrorCode =
@@ -357,8 +357,7 @@ export function findCommentAction(container: HTMLElement): HTMLElement | null {
     if (element && !isOwn(element) && isVisible(element)) return element;
   }
   const byText = Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
-    (element) =>
-      !isOwn(element) && COMMENT_ACTION_TEXT.test((element.textContent ?? '').trim()) && isVisible(element),
+    (element) => !isOwn(element) && matchesCommentActionText(element.textContent) && isVisible(element),
   );
   return byText ?? null;
 }

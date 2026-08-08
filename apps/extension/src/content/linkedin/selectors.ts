@@ -63,10 +63,13 @@ export const COMMENT_ACTION_SELECTORS: string[] = [
 
 /**
  * The 2026 feed renders the Comment control with no aria-label at all — only
- * the visible word "Comment". Buttons matching these selectors are checked by
- * their trimmed text instead.
+ * the visible word "Comment", usually beside an icon and sometimes a count.
+ * Non-letters are stripped before matching so "💬 Comment" and "Comment 58"
+ * are still recognised, while "View more options for X's comment." is not.
  */
-export const COMMENT_ACTION_TEXT = /^comment$/i;
+export function matchesCommentActionText(raw: string | null | undefined): boolean {
+  return /^comment$/i.test((raw ?? '').replace(/[^\p{L}]+/gu, ''));
+}
 
 /** The comment editor itself (contenteditable), once opened. */
 export const COMMENT_EDITOR_SELECTORS: string[] = [
