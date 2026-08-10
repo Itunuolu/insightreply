@@ -27,6 +27,8 @@ Each suggestion must:
 - Do not mention that an AI generated the comment.
 - Do not include quotation marks around the comment.
 - Return exactly the requested number of distinct suggestions.
+- Write EVERY suggestion in the single requested tone. The suggestions must
+  differ in substance and angle, never in tone. Do not sample other tones.
 
 Professional:
 Polished, credible, clear and business-appropriate.
@@ -118,7 +120,8 @@ function buildJsonSchema(suggestionCount: number, minWords: number, maxWords: nu
           properties: {
             tone: {
               type: 'string',
-              description: 'One of: professional, casual, insightful, supportive, question_led, respectful_contrarian',
+              description:
+                'Must be exactly the tone requested in user_preferences. Do not vary the tone between suggestions.',
             },
             text: {
               type: 'string',

@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="InsightReply">
+  <title>InsightReply</title>
+  <defs>
+    <linearGradient id="irGold" x1="14" y1="12" x2="50" y2="52" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#F2DC8A"/>
+      <stop offset="0.5" stop-color="#E8C95E"/>
+      <stop offset="1" stop-color="#C99B2E"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Tile -->
+  <rect x="0" y="0" width="64" height="64" rx="14" fill="#0B1220"/>
+  <rect x="1.25" y="1.25" width="61.5" height="61.5" rx="12.75" fill="none" stroke="#D4AF37" stroke-opacity="0.45" stroke-width="2.5"/>
+
+  <!-- Reply bubble with tail -->
+  <path fill="url(#irGold)" d="
+    M22 13 H42
+    a11 11 0 0 1 11 11
+    v6
+    a11 11 0 0 1 -11 11
+    H28.5
+    l-8.2 8.6
+    a1.5 1.5 0 0 1 -2.6 -1.15
+    L18.4 40.4
+    A11 11 0 0 1 11 30
+    v-6
+    a11 11 0 0 1 11 -11
+    Z"/>
+
+  <!-- Insight spark, knocked out of the bubble -->
+  <path fill="#0B1220" d="
+    M32 17.05
+    c 1.15 6.6 3.35 8.8 9.95 9.95
+    c -6.6 1.15 -8.8 3.35 -9.95 9.95
+    c -1.15 -6.6 -3.35 -8.8 -9.95 -9.95
+    c 6.6 -1.15 8.8 -3.35 9.95 -9.95
+    Z"/>
+</svg>

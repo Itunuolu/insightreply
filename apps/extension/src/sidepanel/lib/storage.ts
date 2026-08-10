@@ -1,5 +1,6 @@
 import type { SelectedPost, Settings } from '@insightreply/shared';
-import { DEFAULT_SETTINGS, selectedPostSchema, settingsSchema } from '@insightreply/shared';
+import { selectedPostSchema, settingsSchema } from '@insightreply/shared';
+import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS } from './config.js';
 
 const SETTINGS_KEY = 'insightReplySettings';
 const SELECTED_POST_KEY = 'insightReply.selectedPost';

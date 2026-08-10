@@ -2,7 +2,7 @@
 
 **Last updated:** 2026-08-06
 
-This policy describes how the InsightReply Chrome extension and its optional self-hosted backend handle your data. InsightReply is a user-controlled writing assistant: it helps you draft LinkedIn comments and never acts on your behalf without your explicit action.
+This policy describes how the InsightReply Chrome extension and its configured backend handle your data. InsightReply is a user-controlled writing assistant: it helps you draft LinkedIn comments and never acts on your behalf without your explicit action.
 
 ## What InsightReply does
 
@@ -31,13 +31,13 @@ This policy describes how the InsightReply Chrome extension and its optional sel
 
 ## Where data goes
 
-- **Your backend:** the extension calls the backend URL configured in Settings (default `http://localhost:8787`, which you run yourself).
-- **The AI provider:** the backend sends your selected post and preferences to OpenAI (or whatever provider you configure) to generate suggestions. That provider's own terms and privacy policy apply to your request.
+- **The configured backend:** the production extension calls the InsightReply backend by default. Advanced users can configure a compatible self-hosted endpoint in Settings.
+- **The AI provider:** the backend sends your selected post and preferences to its configured AI provider to generate suggestions. That provider processes the request under its applicable service terms and privacy policy.
 - **No third-party analytics** are embedded in the extension.
 
 ## Retention
 
-The backend does not store posts. No database is used. Logs contain request metadata (method, route, status, latency) and never include post content. OpenAI's retention policies for submitted prompts apply to the requests you make through your own API key.
+The InsightReply backend does not store posts in a database. Application logs contain request metadata (method, route, status, latency) and deliberately exclude post content and writing-profile text. The hosting provider and AI provider may process limited technical or request data under their respective service terms and retention policies.
 
 ## Your controls
 

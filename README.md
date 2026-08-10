@@ -1,4 +1,4 @@
-# InsightReply by Hadesh.ai
+<img src="assets/brand/insightreply-lockup.svg" alt="InsightReply by Hadesh.ai" width="300">
 
 InsightReply is an AI-powered Chrome extension that helps you write thoughtful, relevant comments on LinkedIn posts. It reads **only** the post you deliberately select, understands its topic and context, and generates natural comment suggestions in different styles — ready for you to review, edit, and post yourself.
 
@@ -13,14 +13,56 @@ InsightReply is an AI-powered Chrome extension that helps you write thoughtful, 
 - **Full user control.** Edit, copy, regenerate, or insert a suggestion into the same post's comment editor. Nothing is ever submitted or posted automatically.
 - **Private by default.** Only the selected post + your preferences are sent to your own backend, which forwards them to the AI provider. No databases, no retention, no cookies, no profile crawling.
 
-## 2. Screenshots
+## 2. Screenshots & demo
 
 | | |
 |---|---|
-| *Side panel — post preview and tone/length selectors* | *Side panel — three generated suggestions* |
-| *(placeholder — replace with `screenshots/generate.png`)* | *(placeholder — replace with `screenshots/results.png`)* |
-| *AI Comment button on a LinkedIn post* | *Settings view* |
-| *(placeholder — replace with `screenshots/button.png`)* | *(placeholder — replace with `screenshots/settings.png`)* |
+| ![Select a post](assets/store/screenshot-01-select.png) | ![Tone and length](assets/store/screenshot-02-compose.png) |
+| ![Three suggestions](assets/store/screenshot-03-suggestions.png) | ![Insert into LinkedIn](assets/store/screenshot-04-insert.png) |
+
+**[▶ Watch the 65-second demo](assets/demo/insightreply-demo.mp4)** — select a post, choose a tone and
+length, generate, and insert the result into that post's comment box.
+
+Everything above was captured from the real extension, service worker, side panel and backend. The
+feed is a synthetic page (`assets/demo/demo-feed.html`) built from LinkedIn's own DOM structure and
+served at a `linkedin.com` URL, so the genuine content script runs and no third-party posts or
+account data appear in any asset.
+
+### Assets
+
+```text
+assets/
+  brand/    insightreply-mark.svg, insightreply-lockup.svg
+  store/    1280x800 screenshots, promo tiles, 128px icon, raw/ source captures
+    package/  built extension zip + BUILD-INFO.txt
+  demo/     insightreply-demo.mp4, demo-poster.png, demo-feed.html
+```
+
+| Asset | Size | Chrome Web Store use |
+|---|---|---|
+| `assets/store/screenshot-0*.png` | 1280×800 | Listing screenshots (up to 5) |
+| `assets/store/promo-small-440x280.png` | 440×280 | Small promo tile |
+| `assets/store/promo-marquee-1400x560.png` | 1400×560 | Marquee tile (homepage featuring) |
+| `assets/store/icon-128.png` | 128×128 | Store icon |
+| `assets/store/package/insightreply-extension.zip` | — | The extension package itself (the only file uploaded as the build) |
+
+`assets/store/package/BUILD-INFO.txt` records the version, permissions, file
+count, sha256 and — crucially — the backend URL baked into that package. A build
+pointing at localhost is indistinguishable from a shippable one until you read
+it, so check it before uploading. See `assets/store/package/README.md`.
+
+Rebuild the framed images after a copy or branding change:
+
+```bash
+pnpm store:assets
+```
+
+It composes them from `assets/store/raw/` (committed UI captures) plus the brand SVG, so no backend
+or browser session is needed. Re-shoot `raw/` only when the UI itself changes. Confirm the required
+sizes in the Developer Dashboard before uploading — Google adjusts them occasionally.
+
+The extension's own PNG icons come from `apps/extension/scripts/generate-icons.mjs` (`pnpm icons`),
+which redraws the mark in pure Node. Edit the SVG and that script together so they stay in sync.
 
 ## 3. Architecture
 
@@ -72,6 +114,7 @@ insightreply/
         routes/         # /health, /v1/comments/generate
   packages/
     shared/             # Zod schemas, types, message protocol
+  assets/               # brand marks, Chrome Web Store images, demo video
   docs/                 # privacy, permissions, selector maintenance, store checklist
   dist/                 # insightreply-extension.zip (packaging output)
 ```
@@ -199,7 +242,7 @@ See `docs/linkedin-selector-maintenance.md` for the workflow, including how to r
 - The backend validates every request with Zod (post ≤ 12,000 chars, perspective ≤ 500, writing profile ≤ 1,500).
 - Per-IP rate limiting (default 30 req/60 s) and restrictive CORS (only your extension origin).
 - Request bodies are never logged; error messages never contain post content or stack traces.
-- The extension uses only `storage`, `activeTab`, `scripting`, and `sidePanel` permissions; host permissions cover only `linkedin.com` and the local backend.
+- The extension uses only `storage`, `activeTab`, `scripting`, and `sidePanel` permissions, and a single host permission for `linkedin.com`. The backend is reached over CORS, so no host permission is needed for it — pointing the extension at your own deployment never asks the user to grant a new host.
 - All post content is treated as untrusted input: it is inserted as plain text (never `innerHTML`) and prompt-injection text inside posts is analysed as content, not followed as instructions.
 - See `docs/permissions-justification.md` for the full breakdown.
 

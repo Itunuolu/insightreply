@@ -21,8 +21,16 @@ function okResponse() {
       postSummary: 'A post about analytics.',
       suggestions: [
         { id: 's1', tone: 'insightful', text: 'The interview loop is the real story here.' },
-        { id: 's2', tone: 'insightful', text: 'What metric proved the dashboard worked for users?' },
-        { id: 's3', tone: 'insightful', text: 'A year of research before building is rare discipline.' },
+        {
+          id: 's2',
+          tone: 'insightful',
+          text: 'What metric proved the dashboard worked for users?',
+        },
+        {
+          id: 's3',
+          tone: 'insightful',
+          text: 'A year of research before building is rare discipline.',
+        },
       ],
     }),
   };
@@ -77,6 +85,100 @@ describe('generateComments', () => {
     await expect(
       generateComments({ settings: DEFAULT_SETTINGS, post, compose }),
     ).rejects.toMatchObject({ code: 'NETWORK_ERROR' });
+  });
+
+  it('retries a transient network failure before succeeding', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(new TypeError('Failed to fetch'))
+      .mockResolvedValueOnce(okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const resultPromise = generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+        post,
+        compose,
+      });
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.suggestions).toHaveLength(3);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('retries a temporary 503 response before succeeding', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        json: async () => ({ error: { code: 'TEMPORARY', message: 'Try again.' } }),
+      })
+      .mockResolvedValueOnce(okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    try {
+      const resultPromise = generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+        post,
+        compose,
+      });
+      await vi.runAllTimersAsync();
+      const result = await resultPromise;
+
+      expect(result.suggestions).toHaveLength(3);
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('identifies a duplicate unpacked extension when CORS blocks the request', async () => {
+    vi.useFakeTimers();
+    const runtime = chrome.runtime as typeof chrome.runtime & { id: string };
+    const originalId = runtime.id;
+    Object.defineProperty(runtime, 'id', { configurable: true, value: 'unpacked-extension-id' });
+    vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')));
+
+    try {
+      const assertion = expect(
+        generateComments({
+          settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+          post,
+          compose,
+        }),
+      ).rejects.toMatchObject({
+        code: 'EXTENSION_ID_MISMATCH',
+        message: expect.stringContaining('duplicate InsightReply copy'),
+      });
+      await vi.runAllTimersAsync();
+      await assertion;
+    } finally {
+      Object.defineProperty(runtime, 'id', { configurable: true, value: originalId });
+      vi.useRealTimers();
+    }
+  });
+
+  it('reports a provider timeout without issuing duplicate generation requests', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValue(new DOMException('The operation timed out.', 'TimeoutError'));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+        post,
+        compose,
+      }),
+    ).rejects.toMatchObject({ code: 'NETWORK_TIMEOUT' });
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it('rejects malformed successful responses', async () => {
@@ -136,7 +238,78 @@ function okResponseJson() {
     suggestions: [
       { id: 's1', tone: 'insightful', text: 'The interview loop is the real story here.' },
       { id: 's2', tone: 'insightful', text: 'What metric proved the dashboard worked for users?' },
-      { id: 's3', tone: 'insightful', text: 'A year of research before building is rare discipline.' },
+      {
+        id: 's3',
+        tone: 'insightful',
+        text: 'A year of research before building is rare discipline.',
+      },
     ],
   };
 }
+describe('backend URL normalization', () => {
+  it('strips a trailing slash so the request path has no double slash', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateComments({
+      settings: { ...DEFAULT_SETTINGS, backendUrl: 'http://localhost:8787/' },
+      post,
+      compose,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://localhost:8787/v1/comments/generate');
+  });
+
+  it('leaves a URL without a trailing slash untouched', async () => {
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => okResponse());
+    vi.stubGlobal('fetch', fetchMock);
+
+    await generateComments({
+      settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+      post,
+      compose,
+    });
+
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('https://api.example.com/v1/comments/generate');
+  });
+});
+
+describe('unreachable backend messages', () => {
+  it('tells the user a local backend runs on their machine', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    await expect(
+      generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'http://localhost:8787' },
+        post,
+        compose,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: expect.stringContaining('runs on this machine'),
+    });
+  });
+
+  it('names the deployed URL that could not be reached', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw new TypeError('Failed to fetch');
+      }),
+    );
+    await expect(
+      generateComments({
+        settings: { ...DEFAULT_SETTINGS, backendUrl: 'https://api.example.com' },
+        post,
+        compose,
+      }),
+    ).rejects.toMatchObject({
+      code: 'NETWORK_ERROR',
+      message: expect.stringContaining('https://api.example.com'),
+    });
+  });
+});

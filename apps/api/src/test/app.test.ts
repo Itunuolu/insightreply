@@ -132,3 +132,37 @@ describe('HTTP API', () => {
     await app.close();
   });
 });
+
+describe('CORS origin allow-list', () => {
+  const DEV = 'chrome-extension://devidaaaaaaaaaaaaaaaaaaaaaaaaaaa';
+  const PUBLISHED = 'chrome-extension://publishedbbbbbbbbbbbbbbbbbbbbbbb';
+
+  const preflight = (app: Awaited<ReturnType<typeof buildApp>>, origin: string) =>
+    app.inject({
+      method: 'OPTIONS',
+      url: '/v1/comments/generate',
+      headers: { origin, 'access-control-request-method': 'POST' },
+    });
+
+  it('accepts every origin in a comma-separated list', async () => {
+    const app = await buildApp({ env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: `${DEV},${PUBLISHED}` }) });
+    for (const origin of [DEV, PUBLISHED]) {
+      expect((await preflight(app, origin)).headers['access-control-allow-origin']).toBe(origin);
+    }
+    await app.close();
+  });
+
+  it('tolerates whitespace and trailing slashes in the list', async () => {
+    const app = await buildApp({
+      env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: `  ${DEV}/ ,  ${PUBLISHED}  ` }),
+    });
+    expect((await preflight(app, DEV)).headers['access-control-allow-origin']).toBe(DEV);
+    await app.close();
+  });
+
+  it('rejects an origin that is not listed', async () => {
+    const app = await buildApp({ env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: DEV }) });
+    expect((await preflight(app, PUBLISHED)).headers['access-control-allow-origin']).toBeUndefined();
+    await app.close();
+  });
+});

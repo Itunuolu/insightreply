@@ -1,5 +1,6 @@
 import type { Settings } from '@insightreply/shared';
-import { TONES, EMOJI_PREFERENCES, DEFAULT_SETTINGS } from '@insightreply/shared';
+import { TONES, EMOJI_PREFERENCES } from '@insightreply/shared';
+import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS, isLocalBackend } from '../lib/config.js';
 import { useApp } from '../state/AppContext';
 import { Button } from '../components/Button.js';
 import { SectionLabel } from '../components/SectionLabel.js';
@@ -167,8 +168,15 @@ export function SettingsView() {
             className="w-full rounded-xl border border-navy-600 bg-navy-800 px-3 py-2 text-sm text-slate-100 focus:border-gold focus:outline-none"
           />
           <p className="mt-1 text-[11px] text-slate-500">
-            Your own instance of the InsightReply backend (default: http://localhost:8787).
+            Your own instance of the InsightReply backend (default: {DEFAULT_SETTINGS.backendUrl}).
           </p>
+          {isLocalBackend(settings.backendUrl) && (
+            <p className="mt-2 rounded-lg bg-gold/10 px-2 py-1.5 text-[11px] leading-relaxed text-gold-light">
+              This points at a backend on your own machine, so generation only works while that
+              server is running. Deploy the backend and paste its HTTPS URL here to use InsightReply
+              anywhere.
+            </p>
+          )}
         </div>
       </section>
 

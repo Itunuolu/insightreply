@@ -41,18 +41,43 @@ export const AUTHOR_NAME_SELECTORS: string[] = [
   'span[dir="auto"] strong',
 ];
 
+/**
+ * Class marking every element InsightReply injects. Every selector that scans
+ * LinkedIn's own controls must exclude it: the action button's aria-label
+ * contains the word "comment", so without this guard the extension matches —
+ * and clicks — itself instead of LinkedIn's Comment control.
+ */
+export const OWN_ELEMENT_CLASS = 'insightreply-button';
+
+const notOwn = `:not(.${OWN_ELEMENT_CLASS})`;
+
 /** Controls that open the comment editor ("Comment" action). */
 export const COMMENT_ACTION_SELECTORS: string[] = [
-  '[data-view-name="feed-action-item"][aria-label*="Comment" i]',
-  'button[aria-label*="Comment" i]',
-  'button[aria-label*="comment" i]',
-  '[data-control-name="comment"]',
-  '[data-testid="comments-button"]',
-  'button.comments-comment-box__open-comment-box',
+  `[data-view-name="feed-action-item"][aria-label*="Comment" i]${notOwn}`,
+  `button[aria-label="Comment" i]${notOwn}`,
+  `button[aria-label*="Comment on" i]${notOwn}`,
+  `[data-control-name="comment"]${notOwn}`,
+  `[data-testid="comments-button"]${notOwn}`,
+  `button.comments-comment-box__open-comment-box${notOwn}`,
 ];
+
+/**
+ * The 2026 feed renders the Comment control with no aria-label at all — only
+ * the visible word "Comment", usually beside an icon and sometimes a count.
+ * Non-letters are stripped before matching so "💬 Comment" and "Comment 58"
+ * are still recognised, while "View more options for X's comment." is not.
+ */
+export function matchesCommentActionText(raw: string | null | undefined): boolean {
+  return /^comment$/i.test((raw ?? '').replace(/[^\p{L}]+/gu, ''));
+}
 
 /** The comment editor itself (contenteditable), once opened. */
 export const COMMENT_EDITOR_SELECTORS: string[] = [
+  // 2026: LinkedIn's comment box is TipTap/ProseMirror, not Quill.
+  '[data-testid="ui-core-tiptap-text-editor-wrapper"] div[contenteditable="true"]',
+  'div.tiptap[contenteditable="true"][role="textbox"][aria-label*="comment" i]',
+  'div[contenteditable="true"][role="textbox"][aria-label*="comment" i]',
+  // Legacy Quill-based editor, still served on some surfaces.
   '.comments-comment-box__form .ql-editor',
   '.comment-editor__textarea',
   '.comments-comment-box__form div[contenteditable="true"][role="textbox"][aria-label*="comment" i]',

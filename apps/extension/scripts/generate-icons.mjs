@@ -1,8 +1,13 @@
 /**
- * Generates InsightReply placeholder icons in Chrome-required sizes.
- * Pure Node: draws a navy rounded square with a white chat bubble,
- * gold border and gold dots (Hadesh.ai palette), written as raw PNG.
- * No image libraries required.
+ * Generates the InsightReply extension icons in Chrome-required sizes.
+ *
+ * The artwork mirrors docs/brand/insightreply-mark.svg: a navy tile with a gold
+ * rim, a gold reply bubble, and the "insight" spark knocked out of the bubble.
+ * Geometry below is expressed in the SVG's 64-unit coordinate space so the two
+ * files can be kept in sync by eye.
+ *
+ * Pure Node — no image libraries, no headless browser — because this runs as
+ * part of `pnpm build:extension` on clean checkouts and in CI.
  */
 import { deflateSync } from 'node:zlib';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -13,9 +18,23 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const OUT_DIR = join(ROOT, 'src', 'assets', 'icons');
 const SIZES = [16, 32, 48, 128];
 
+/** Design space matches the SVG viewBox. */
+const VB = 64;
+
 const NAVY = [11, 18, 32];
-const WHITE = [255, 255, 255];
-const GOLD = [212, 175, 55];
+const RIM = [212, 175, 55];
+const RIM_OPACITY = 0.45;
+
+/** Gold gradient stops, matching the SVG's linearGradient. */
+const GRADIENT = {
+  from: [14, 12],
+  to: [50, 52],
+  stops: [
+    [0, [242, 220, 138]],
+    [0.5, [232, 201, 94]],
+    [1, [201, 155, 46]],
+  ],
+};
 
 const CRC_TABLE = (() => {
   const table = new Uint32Array(256);
@@ -65,6 +84,7 @@ function encodePng(width, height, rgba) {
   ]);
 }
 
+/** Signed distance to a rounded rectangle centred at (cx, cy). */
 function sdfRoundRect(px, py, cx, cy, hw, hh, r) {
   const dx = Math.abs(px - cx) - (hw - r);
   const dy = Math.abs(py - cy) - (hh - r);
@@ -82,41 +102,64 @@ function inTriangle(px, py, ax, ay, bx, by, cx, cy) {
   return !(hasNeg && hasPos);
 }
 
-function sampleAt(s, x, y) {
-  // Icon mask: rounded square
-  if (sdfRoundRect(x, y, 0.5 * s, 0.5 * s, 0.5 * s, 0.5 * s, 0.22 * s) > 0) {
-    return null;
-  }
-  const hw = 0.39 * s;
-  const hh = 0.29 * s;
-  const cx = 0.5 * s;
-  const cy = 0.44 * s;
-  const r = 0.19 * s;
-  const border = Math.max(0.045 * s, 1.1);
-  const dist = sdfRoundRect(x, y, cx, cy, hw, hh, r);
-  const insideBubble = dist <= 0;
-  const inBorder = insideBubble && dist > -border;
-  const inTail =
-    inTriangle(x, y, cx - hw + r * 0.5, cy + hh - r * 0.4, cx - hw * 0.55, cy + hh, cx - hw * 0.15, cy + hh + 0.24 * s);
+/**
+ * Four-pointed spark: an astroid, whose concave sides give the shape its
+ * "sparkle" read rather than the blunt look of a straight-sided star.
+ */
+function inSpark(px, py, cx, cy, radius) {
+  const u = Math.abs(px - cx) / radius;
+  const v = Math.abs(py - cy) / radius;
+  if (u > 1 || v > 1) return false;
+  return Math.sqrt(u) + Math.sqrt(v) <= 1;
+}
 
-  let color = NAVY;
-  if (inTail || inBorder) {
-    color = GOLD;
-  } else if (insideBubble) {
-    color = WHITE;
-    const dotR = 0.05 * s;
-    for (const dx of [-0.15 * s, 0, 0.15 * s]) {
-      if (Math.hypot(x - (cx + dx), y - cy) <= dotR) {
-        color = GOLD;
-        break;
-      }
-    }
+function mix(a, b, t) {
+  return [
+    a[0] + (b[0] - a[0]) * t,
+    a[1] + (b[1] - a[1]) * t,
+    a[2] + (b[2] - a[2]) * t,
+  ];
+}
+
+/** Samples the gold gradient at a point, projected onto the gradient axis. */
+function goldAt(px, py) {
+  const [ax, ay] = GRADIENT.from;
+  const [bx, by] = GRADIENT.to;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const t = Math.min(1, Math.max(0, ((px - ax) * dx + (py - ay) * dy) / (dx * dx + dy * dy)));
+  const stops = GRADIENT.stops;
+  for (let i = 1; i < stops.length; i += 1) {
+    const [t0, c0] = stops[i - 1];
+    const [t1, c1] = stops[i];
+    if (t <= t1) return mix(c0, c1, (t - t0) / (t1 - t0));
   }
-  return color;
+  return stops[stops.length - 1][1];
+}
+
+/** Returns the colour at a point in 64-unit design space, or null outside the tile. */
+function sampleAt(x, y) {
+  // Tile
+  if (sdfRoundRect(x, y, 32, 32, 32, 32, 14) > 0) return null;
+
+  // Reply bubble body + tail
+  const inBubble = sdfRoundRect(x, y, 32, 27, 21, 14, 11) <= 0;
+  const inTail = inTriangle(x, y, 28.5, 41, 20.1, 49.6, 18.4, 40.4);
+  if (inBubble || inTail) {
+    // The spark is knocked out of the bubble.
+    return inSpark(x, y, 32, 27, 9.95) ? NAVY : goldAt(x, y);
+  }
+
+  // Gold rim: a 2.5-unit stroke inset from the tile edge.
+  const rim = sdfRoundRect(x, y, 32, 32, 30.75, 30.75, 12.75);
+  if (rim > -1.25 && rim < 1.25) return mix(NAVY, RIM, RIM_OPACITY);
+
+  return NAVY;
 }
 
 function renderIcon(size) {
   const ss = 4; // supersampling
+  const scale = VB / size;
   const rgba = Buffer.alloc(size * size * 4);
   for (let y = 0; y < size; y += 1) {
     for (let x = 0; x < size; x += 1) {
@@ -126,9 +169,7 @@ function renderIcon(size) {
       let a = 0;
       for (let sy = 0; sy < ss; sy += 1) {
         for (let sx = 0; sx < ss; sx += 1) {
-          const px = x + (sx + 0.5) / ss;
-          const py = y + (sy + 0.5) / ss;
-          const color = sampleAt(size, px, py);
+          const color = sampleAt((x + (sx + 0.5) / ss) * scale, (y + (sy + 0.5) / ss) * scale);
           if (color) {
             r += color[0];
             g += color[1];
@@ -139,9 +180,10 @@ function renderIcon(size) {
       }
       const total = ss * ss;
       const idx = (y * size + x) * 4;
-      rgba[idx] = Math.round(r / total);
-      rgba[idx + 1] = Math.round(g / total);
-      rgba[idx + 2] = Math.round(b / total);
+      // Un-premultiply so edge pixels keep the fill colour rather than fading to black.
+      rgba[idx] = a ? Math.round(r / a) : 0;
+      rgba[idx + 1] = a ? Math.round(g / a) : 0;
+      rgba[idx + 2] = a ? Math.round(b / a) : 0;
       rgba[idx + 3] = Math.round((a / total) * 255);
     }
   }

@@ -12,6 +12,19 @@ describe('CommentGenerator', () => {
     expect(result.repaired).toBe(false);
   });
 
+  it('omits transport-only and model-restricted settings from the Responses API body', async () => {
+    const create = vi.fn(async (_params: Record<string, unknown>) => ({
+      output_text: validSuggestionsJson(3),
+    }));
+    const generator = new CommentGenerator({ client: makeFakeClient(create), model: 'gpt-test' });
+
+    await generator.generate(validRequest());
+
+    expect(create).toHaveBeenCalledOnce();
+    expect(create.mock.calls[0]?.[0]).not.toHaveProperty('timeout');
+    expect(create.mock.calls[0]?.[0]).not.toHaveProperty('temperature');
+  });
+
   it('recovers from an invalid response with one controlled repair call', async () => {
     const calls = vi.fn();
     const client = makeFakeClient(async () => {
@@ -81,7 +94,10 @@ describe('CommentGenerator', () => {
   it('trims suggestions down to the requested count', async () => {
     const client = makeFakeClient(async () => ({ output_text: validSuggestionsJson(4) }));
     const generator = new CommentGenerator({ client, model: 'gpt-test' });
-    const result = await generator.generate({ ...validRequest(), preferences: { ...validRequest().preferences, suggestionCount: 3 } });
+    const result = await generator.generate({
+      ...validRequest(),
+      preferences: { ...validRequest().preferences, suggestionCount: 3 },
+    });
     expect(result.suggestions).toHaveLength(3);
   });
 

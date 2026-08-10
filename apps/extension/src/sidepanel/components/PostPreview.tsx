@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { MAX_POST_LENGTH } from '@insightreply/shared';
 import { useApp } from '../state/AppContext';
 import { sanitizeText } from '../lib/sanitize.js';
 
@@ -22,7 +23,10 @@ export function PostPreview() {
     );
   }
 
-  const fullText = sanitizeText(post.postText);
+  // sanitizeText caps at 500 characters by default, which silently truncated
+  // every preview to exactly the preview limit and made `truncated` (and the
+  // Expand control) permanently false.
+  const fullText = sanitizeText(post.postText, MAX_POST_LENGTH);
   const previewText = expanded ? fullText : truncate(fullText, PREVIEW_LIMIT);
   const truncated = fullText.length > PREVIEW_LIMIT;
 

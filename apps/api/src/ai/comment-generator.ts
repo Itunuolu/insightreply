@@ -38,7 +38,6 @@ export interface GeneratorResult {
 export interface CommentGeneratorDeps {
   client: OpenAiLikeClient;
   model: string;
-  timeoutMs?: number;
 }
 
 const uuidSafe = (): string => {
@@ -54,12 +53,10 @@ const uuidSafe = (): string => {
 export class CommentGenerator {
   private readonly client: OpenAiLikeClient;
   private readonly model: string;
-  private readonly timeoutMs: number;
 
   constructor(deps: CommentGeneratorDeps) {
     this.client = deps.client;
     this.model = deps.model;
-    this.timeoutMs = deps.timeoutMs ?? 60_000;
   }
 
   async generate(request: GenerateCommentsRequest): Promise<GeneratorResult> {
@@ -85,7 +82,7 @@ export class CommentGenerator {
       throw new ApiError(
         422,
         'AI_INVALID_OUTPUT',
-        'OpenAI returned an invalid or unparseable structured response',
+        'AI provider returned an invalid or unparseable structured response',
         'The AI returned an unreadable response. Please try again.',
       );
     }
@@ -112,8 +109,6 @@ export class CommentGenerator {
             schema: prompt.jsonSchema,
           },
         },
-        temperature: 0.9,
-        timeout: this.timeoutMs,
       });
     } catch (err) {
       throw this.mapOpenAiError(err, requestId);
@@ -123,7 +118,7 @@ export class CommentGenerator {
       throw new ApiError(
         422,
         'AI_REFUSED',
-        'OpenAI refused to generate a comment for this request',
+        'AI provider refused to generate a comment for this request',
         'The model declined this request. Try a different perspective or post.',
       );
     }
@@ -133,7 +128,7 @@ export class CommentGenerator {
       throw new ApiError(
         422,
         'AI_INVALID_OUTPUT',
-        'OpenAI returned an empty structured response',
+        'AI provider returned an empty structured response',
         'AI returned an empty response. Please try again.',
       );
     }
@@ -149,8 +144,7 @@ export class CommentGenerator {
     const filtered = filterSuggestions(parsed.suggestions, request.post.text, {
       length: request.preferences.length,
       emojiPreference: request.preferences.emojiPreference,
-      maxQuestionModeTone:
-        request.preferences.tone === 'question_led' ? 'question_led' : 'none',
+      maxQuestionModeTone: request.preferences.tone === 'question_led' ? 'question_led' : 'none',
       allowHashtags: false,
     });
 
@@ -164,8 +158,12 @@ export class CommentGenerator {
     }
 
     // Trim back to the requested count (which will already de-duplicate).
+    // The tone is stamped from the request rather than taken from the model:
+    // the schema lists every tone as a valid value, so models routinely label
+    // suggestions with a tone the user never asked for.
     const suggestions = filtered.slice(0, request.preferences.suggestionCount).map((s, i) => ({
       ...s,
+      tone: request.preferences.tone,
       id: `sug_${i + 1}_${requestId.slice(0, 6)}`,
     }));
 
@@ -218,7 +216,7 @@ export class CommentGenerator {
         return new ApiError(
           429,
           'RATE_LIMITED',
-          `OpenAI rate limit reached (request ${requestId})`,
+          `AI provider rate limit reached (request ${requestId})`,
           'Too many requests right now. Wait a moment and try again.',
         );
       }
@@ -226,7 +224,7 @@ export class CommentGenerator {
         return new ApiError(
           502,
           'AI_UPSTREAM_ERROR',
-          `OpenAI authentication error (request ${requestId})`,
+          `AI provider authentication error (request ${requestId})`,
           'The AI provider rejected the request key. Check the backend configuration.',
         );
       }
@@ -236,7 +234,7 @@ export class CommentGenerator {
           return new ApiError(
             502,
             'AI_TIMEOUT',
-            `OpenAI request timed out (request ${requestId})`,
+            `AI provider request timed out (request ${requestId})`,
             'The AI took too long to respond. Please try again.',
           );
         }
@@ -245,7 +243,7 @@ export class CommentGenerator {
     return new ApiError(
       502,
       'AI_UPSTREAM_ERROR',
-      `OpenAI request failed (request ${requestId})`,
+      `AI provider request failed (request ${requestId})`,
       'The AI provider could not be reached. Please try again in a moment.',
       err instanceof Error ? err : undefined,
     );

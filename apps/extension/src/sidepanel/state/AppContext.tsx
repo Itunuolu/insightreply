@@ -14,7 +14,8 @@ import type {
   Settings,
   Tone,
 } from '@insightreply/shared';
-import { DEFAULT_SETTINGS, settingsSchema } from '@insightreply/shared';
+import { settingsSchema } from '@insightreply/shared';
+import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS } from '../lib/config.js';
 import {
   generateComments,
   regenerateSingleSuggestion,
@@ -59,6 +60,8 @@ interface AppState {
   settings: Settings;
   selectedPost: SelectedPost | null;
   compose: Compose;
+  /** Set once the user picks a tone/length by hand, so saved defaults stop seeding it. */
+  composeTouched: boolean;
   generationStatus: 'idle' | 'generating' | 'error';
   generationError: PanelError | null;
   result: GenerateCommentsResponse | null;
@@ -97,6 +100,7 @@ function initialState(settings: Settings): AppState {
       length: settings.defaultLength,
       perspective: '',
     },
+    composeTouched: false,
     generationStatus: 'idle',
     generationError: null,
     result: null,
@@ -111,7 +115,20 @@ function reducer(state: AppState, action: Action): AppState {
     case 'SET_VIEW':
       return { ...state, view: action.view };
     case 'SET_SETTINGS':
-      return { ...state, settings: action.settings };
+      // Saved defaults must actually seed the composer. Without this the panel
+      // always generated with the hard-coded DEFAULT_SETTINGS tone/length no
+      // matter what the user configured. A hand-picked choice still wins.
+      return {
+        ...state,
+        settings: action.settings,
+        compose: state.composeTouched
+          ? state.compose
+          : {
+              ...state.compose,
+              tone: action.settings.defaultTone,
+              length: action.settings.defaultLength,
+            },
+      };
     case 'SET_SELECTED_POST':
       return {
         ...state,
@@ -120,7 +137,14 @@ function reducer(state: AppState, action: Action): AppState {
         generationError: null,
       };
     case 'SET_COMPOSE':
-      return { ...state, compose: { ...state.compose, ...action.compose } };
+      return {
+        ...state,
+        compose: { ...state.compose, ...action.compose },
+        composeTouched:
+          state.composeTouched ||
+          action.compose.tone !== undefined ||
+          action.compose.length !== undefined,
+      };
     case 'GENERATION_START':
       return { ...state, generationStatus: 'generating', generationError: null };
     case 'GENERATION_DONE':
@@ -224,15 +248,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const patchSettings = useCallback(async (patch: Partial<Settings>) => {
-    const merged = { ...DEFAULT_SETTINGS, ...patch };
-    const parsed = settingsSchema.safeParse(merged);
-    if (!parsed.success) {
-      throw new Error('Invalid settings. Check the values and try again.');
-    }
-    dispatch({ type: 'SET_SETTINGS', settings: parsed.data });
-    await saveSettings(parsed.data);
-  }, []);
+  const patchSettings = useCallback(
+    async (patch: Partial<Settings>) => {
+      // Merge onto the *current* settings, not the defaults: patching a single
+      // field must not reset every other field the user has configured.
+      const merged = { ...DEFAULT_SETTINGS, ...state.settings, ...patch };
+      const parsed = settingsSchema.safeParse(merged);
+      if (!parsed.success) {
+        throw new Error('Invalid settings. Check the values and try again.');
+      }
+      dispatch({ type: 'SET_SETTINGS', settings: parsed.data });
+      await saveSettings(parsed.data);
+    },
+    [state.settings],
+  );
 
   const resetSettings = useCallback(async () => {
     await saveSettings(DEFAULT_SETTINGS);

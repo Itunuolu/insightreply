@@ -35,8 +35,15 @@ async function handleSelectPost(
     [SESSION_KEYS.selectedTabId]: sender.tab?.id ?? null,
   });
 
-  await openPanel(sender.tab?.id);
-  return { ok: true, opened: true };
+  // Opening the panel is best-effort: Chrome rejects sidePanel.open() outside a
+  // user gesture, and that raw API string used to surface as the user-facing
+  // toast even though the selection itself had already been stored.
+  try {
+    await openPanel(sender.tab?.id);
+    return { ok: true, opened: true };
+  } catch {
+    return { ok: true, opened: false };
+  }
 }
 
 /** Relays an insert request from the side panel to the tab that owns the post. */

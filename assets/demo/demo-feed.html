@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Feed | LinkedIn</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #f4f2ee; color: #000000e6;
+    font: 14px/1.45 -apple-system, "Segoe UI", system-ui, Roboto, sans-serif;
+  }
+  .nav {
+    position: sticky; top: 0; z-index: 5; background: #fff; height: 52px;
+    border-bottom: 1px solid #e8e6e1; display: flex; align-items: center;
+    padding: 0 24px; gap: 22px;
+  }
+  .logo { width: 34px; height: 34px; border-radius: 4px; background: #0a66c2; color: #fff;
+          font-weight: 800; font-size: 21px; display: grid; place-items: center; }
+  .search { flex: 0 0 240px; height: 34px; border-radius: 4px; background: #edf3f8;
+            display: flex; align-items: center; padding: 0 12px; color: #00000099; }
+  .navitems { margin-left: auto; display: flex; gap: 26px; color: #00000099; font-size: 12px; }
+  .navitem { display: grid; place-items: center; gap: 3px; }
+  .dot { width: 20px; height: 20px; border-radius: 50%; background: #00000026; }
+
+  .shell { max-width: 560px; margin: 20px auto 60px; }
+  .card { background: #fff; border: 1px solid #e8e6e1; border-radius: 8px; margin-bottom: 12px; }
+
+  .actor { display: flex; align-items: flex-start; gap: 10px; padding: 14px 16px 0; }
+  .avatar { width: 46px; height: 46px; border-radius: 50%; flex: none; display: grid;
+            place-items: center; color: #fff; font-weight: 700; font-size: 16px; }
+  .actor-name { font-weight: 600; font-size: 14px; }
+  .actor-sub { color: #00000099; font-size: 12px; }
+  .menu { margin-left: auto; border: 0; background: none; cursor: pointer;
+          color: #00000099; font-size: 20px; line-height: 1; padding: 4px 8px; border-radius: 4px; }
+
+  .post-text { display: block; padding: 10px 16px 4px; font-size: 14px; white-space: pre-wrap; }
+  .counts { display: flex; justify-content: space-between; color: #00000099;
+            font-size: 12px; padding: 10px 16px; border-bottom: 1px solid #e8e6e1; }
+
+  .actions { display: flex; padding: 4px 8px; }
+  .actions button {
+    flex: 1; border: 0; background: none; cursor: pointer; padding: 10px 4px;
+    color: #00000099; font-weight: 600; font-size: 14px; border-radius: 4px;
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+  }
+  .actions button:hover { background: #00000014; }
+  .glyph { font-size: 15px; opacity: .85; }
+
+  .commentbox { padding: 6px 16px 16px; }
+  .tiptapwrap { display: flex; gap: 8px; align-items: flex-start; }
+  .tiptap {
+    flex: 1; min-height: 40px; border: 1px solid #00000047; border-radius: 20px;
+    padding: 10px 14px; font-size: 14px; outline: none; background: #f4f2ee;
+  }
+  .tiptap:empty::before { content: attr(data-placeholder); color: #00000099; }
+  .postbtn { align-self: flex-end; border: 0; border-radius: 16px; padding: 6px 16px;
+             background: #0a66c2; color: #fff; font-weight: 600; font-size: 14px; }
+
+  /* Demo caption strip — part of the recording, not of LinkedIn. */
+  #step {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 9;
+    background: #0B1220; color: #F2DC8A; font-weight: 600; font-size: 14px;
+    padding: 12px 20px; letter-spacing: .01em;
+    box-shadow: 0 -6px 20px #0b122033; opacity: 0; transition: opacity .3s ease;
+  }
+  #step.on { opacity: 1; }
+</style>
+</head>
+<body>
+  <div class="nav">
+    <div class="logo">in</div>
+    <div class="search">Search</div>
+    <div class="navitems">
+      <div class="navitem"><div class="dot"></div>Home</div>
+      <div class="navitem"><div class="dot"></div>Network</div>
+      <div class="navitem"><div class="dot"></div>Jobs</div>
+      <div class="navitem"><div class="dot"></div>Messaging</div>
+      <div class="navitem"><div class="dot"></div>Me</div>
+    </div>
+  </div>
+
+  <div class="shell" id="shell"></div>
+  <div id="step"></div>
+
+<script>
+// Posts are invented. The DOM shape mirrors LinkedIn's 2026 feed so the
+// extension's real selectors are exercised, not a special case.
+const POSTS = [
+  {
+    key: 'demoFeedPostA',
+    name: 'Maya Osei',
+    color: '#7a4f9c',
+    headline: 'Head of Product · Lagos, Nigeria',
+    age: '2h',
+    text: `We cut our onboarding from nine screens to three and activation went up 22%.
+
+The hardest part wasn't the design work. It was convincing ourselves that asking for less information up front was not a loss. Every field we removed felt like giving something up, until we looked at where people actually dropped off.
+
+Turns out the questions we were most attached to were the ones nobody wanted to answer on day one.`,
+    likes: '412', comments: '58',
+  },
+  {
+    key: 'demoFeedPostB',
+    name: 'Daniel Whitfield',
+    color: '#1a6b52',
+    headline: 'Engineering Manager · Remote',
+    age: '5h',
+    text: `Code review advice nobody gives you: the fastest reviews are the ones where the author already told you what to look at.
+
+A three-line description of what changed and why saves more time than any tooling we have bought.`,
+    likes: '1,204', comments: '96',
+  },
+];
+
+const shell = document.getElementById('shell');
+shell.innerHTML = POSTS.map((p) => `
+  <div componentkey="${p.key}">
+    <div role="listitem" class="card">
+      <div class="actor">
+        <div class="avatar" style="background:${p.color}">${p.name.split(' ').map((w) => w[0]).join('')}</div>
+        <div>
+          <div class="actor-name">${p.name}</div>
+          <div class="actor-sub">${p.headline}</div>
+          <div class="actor-sub">${p.age} · 🌐</div>
+        </div>
+        <button class="menu" aria-label="Open control menu for post by ${p.name}">···</button>
+      </div>
+      <span data-testid="expandable-text-box" class="post-text">${p.text}</span>
+      <div class="counts"><span>👍❤️💡 ${p.likes}</span><span>${p.comments} comments</span></div>
+      <div class="actions">
+        <button type="button"><span class="glyph">👍</span><span>Like</span></button>
+        <button type="button"><span class="glyph">💬</span><span>Comment</span></button>
+        <button type="button"><span class="glyph">🔁</span><span>Repost</span></button>
+        <button type="button"><span class="glyph">➤</span><span>Send</span></button>
+      </div>
+    </div>
+  </div>
+`).join('');
+
+// Clicking Comment creates the editor, exactly as LinkedIn does — the editor
+// does not exist in the DOM until then.
+document.addEventListener('click', (event) => {
+  const button = event.target.closest('.actions button');
+  if (!button || button.textContent.replace(/[^a-z]/gi, '').toLowerCase() !== 'comment') return;
+  const card = button.closest('.card');
+  if (card.querySelector('.commentbox')) return;
+  const box = document.createElement('div');
+  box.className = 'commentbox';
+  box.innerHTML = `
+    <div data-testid="ui-core-tiptap-text-editor-wrapper">
+      <div class="tiptapwrap">
+        <div class="tiptap ProseMirror" contenteditable="true" role="textbox" dir="auto"
+             aria-label="Text editor for creating comment" data-placeholder="Add a comment…"></div>
+        <button class="postbtn" type="button">Post</button>
+      </div>
+    </div>`;
+  card.appendChild(box);
+});
+
+// Caption strip driven by the recording script.
+window.__demoStep = (text) => {
+  const el = document.getElementById('step');
+  if (!text) { el.classList.remove('on'); return; }
+  el.textContent = text;
+  el.classList.add('on');
+};
+</script>
+</body>
+</html>
