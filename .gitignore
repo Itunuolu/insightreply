@@ -1,10 +1,12 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+.netlify/
 
 # Build output
 dist/
 dist-extension/
+apps/api/netlify/dist-functions/
 *.tsbuildinfo
 
 # Env / secrets

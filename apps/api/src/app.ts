@@ -26,6 +26,7 @@ export function createOpenAiClient(
   baseURL = 'https://api.openai.com/v1',
   transport: 'responses' | 'chat' = 'responses',
   responseFormat: 'json_schema' | 'json_object' = 'json_schema',
+  thinkingMode: 'default' | 'enabled' | 'disabled' = 'default',
 ): OpenAiLikeClient {
   const client = new OpenAI({ apiKey, baseURL, timeout: 60_000, maxRetries: 1 });
 
@@ -38,11 +39,21 @@ export function createOpenAiClient(
           refusal?: string | null;
         }> {
           const format = params.text as
-            | { format?: { type?: string; name?: string; schema?: Record<string, unknown>; strict?: boolean } }
+            | {
+                format?: {
+                  type?: string;
+                  name?: string;
+                  schema?: Record<string, unknown>;
+                  strict?: boolean;
+                };
+              }
             | undefined;
           const jsonFormat = format?.format;
           const localFormat =
-            responseFormat === 'json_schema' && jsonFormat?.type === 'json_schema' && jsonFormat.name && jsonFormat.schema
+            responseFormat === 'json_schema' &&
+            jsonFormat?.type === 'json_schema' &&
+            jsonFormat.name &&
+            jsonFormat.schema
               ? {
                   type: 'json_schema' as const,
                   json_schema: {
@@ -55,24 +66,26 @@ export function createOpenAiClient(
                 ? ({ type: 'json_object' } as const)
                 : undefined;
 
-          const completion = await client.chat.completions.create(
-            {
-              model: params.model as string,
-              temperature: params.temperature as number | undefined,
-              messages: [
-                { role: 'system', content: (params.instructions as string) ?? '' },
-                {
-                  role: 'user',
-                  content:
-                    localFormat?.type === 'json_object' && jsonFormat?.schema
-                      ? `${(params.input as string) ?? ''}\n\nOutput JSON matching exactly this schema (no prose, no markdown):\n${JSON.stringify(jsonFormat.schema)}`
-                      : ((params.input as string) ?? ''),
-                },
-              ],
-              ...(localFormat ? { response_format: localFormat } : {}),
-            },
-            { timeout: params.timeout as number | undefined },
-          );
+          const chatParams = {
+            model: params.model as string,
+            temperature: params.temperature as number | undefined,
+            messages: [
+              { role: 'system' as const, content: (params.instructions as string) ?? '' },
+              {
+                role: 'user' as const,
+                content:
+                  localFormat?.type === 'json_object' && jsonFormat?.schema
+                    ? `${(params.input as string) ?? ''}\n\nOutput JSON matching exactly this schema (no prose, no markdown):\n${JSON.stringify(jsonFormat.schema)}`
+                    : ((params.input as string) ?? ''),
+              },
+            ],
+            ...(localFormat ? { response_format: localFormat } : {}),
+            ...(thinkingMode === 'default' ? {} : { thinking: { type: thinkingMode } }),
+          };
+
+          const requestOptions =
+            typeof params.timeout === 'number' ? { timeout: params.timeout } : undefined;
+          const completion = await client.chat.completions.create(chatParams, requestOptions);
 
           const message = completion.choices?.[0]?.message;
           return {
@@ -151,13 +164,14 @@ export async function buildApp(deps: BuildAppDeps): Promise<FastifyInstance> {
   });
 
   const client =
-  deps.client ??
-  createOpenAiClient(
-    env.OPENAI_API_KEY,
-    env.OPENAI_BASE_URL,
-    env.OPENAI_TRANSPORT,
-    env.OPENAI_RESPONSE_FORMAT,
-  );
+    deps.client ??
+    createOpenAiClient(
+      env.OPENAI_API_KEY,
+      env.OPENAI_BASE_URL,
+      env.OPENAI_TRANSPORT,
+      env.OPENAI_RESPONSE_FORMAT,
+      env.OPENAI_THINKING_MODE,
+    );
   const generator = new CommentGenerator({ client, model: env.OPENAI_MODEL });
 
   await registerHealthRoutes(app);

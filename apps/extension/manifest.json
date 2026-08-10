@@ -2,9 +2,10 @@
   "manifest_version": 3,
   "name": "InsightReply — AI Comment Assistant",
   "short_name": "InsightReply",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Write thoughtful, relevant LinkedIn comments. Understands only the post you select — you review and post everything yourself.",
   "author": "Hadesh.ai",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnWwzlc/bMo2PGN9V51n74vj8gMOKUbRS1ygyxo/lY51PA+INuS+H++mOsvWo9NEG4B4zUyz5zefW87RppxuC2OmIkuugeOgo9DaxXMhIDeopRLKLqusBLqjEkAz9dHFJQchcENrRD6iBW7XXhn30UvgspRw3FWubA+J+8Cusaq3pjQWP61QdbvV9nZ8PHWZWORVW2Uon9+sy+rVG7uh8c3AhG3gqTkERHau49ngdHAgqwOfdZBUaz2L+erSjHXsQrY1NX4boNaGXAeRyQiUZz1IVKPpZogZm5rUYVifKZZ6wDD9LIUp91ELNStSbNquxZx8qBoBxKzSunibpTgINAQIDAQAB",
   "permissions": ["storage", "activeTab", "scripting", "sidePanel"],
   "host_permissions": ["https://*.linkedin.com/*"],
   "background": {

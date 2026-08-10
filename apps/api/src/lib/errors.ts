@@ -13,7 +13,26 @@ export function registerErrorHandler(app: FastifyInstance): void {
       typeof request.id === 'string' ? request.id : `req_${Date.now().toString(36)}`;
 
     if (err instanceof ApiError) {
-      request.log.warn({ errCode: err.code, requestId }, 'request failed');
+      const cause =
+        err.cause && typeof err.cause === 'object'
+          ? (err.cause as Record<string, unknown>)
+          : undefined;
+      request.log.warn(
+        {
+          errCode: err.code,
+          requestId,
+          upstream: cause
+            ? {
+                name: err.cause instanceof Error ? err.cause.name : undefined,
+                status: typeof cause.status === 'number' ? cause.status : undefined,
+                code: typeof cause.code === 'string' ? cause.code : undefined,
+                type: typeof cause.type === 'string' ? cause.type : undefined,
+                param: typeof cause.param === 'string' ? cause.param : undefined,
+              }
+            : undefined,
+        },
+        'request failed',
+      );
       return reply.status(err.statusCode).send({
         error: {
           code: err.code,

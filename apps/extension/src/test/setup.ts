@@ -65,22 +65,20 @@ const localArea = createStorageArea('local');
 
 const chromeMock = {
   runtime: {
-    id: 'test-extension-id',
+    id: 'beibbhgjopabhoilhpjmekecnbegpllc',
     lastError: undefined,
-    sendMessage: vi.fn(
-      async (message: unknown): Promise<unknown> => {
-        let response: unknown = { ok: true };
-        // Mirror extension messaging: listeners may return true and call
-        // sendResponse asynchronously.
-        const sendResponse = (r: unknown) => {
-          response = r;
-        };
-        for (const listener of messageListeners) {
-          void listener(message, { tab: { id: 1 } }, sendResponse);
-        }
-        return response;
-      },
-    ),
+    sendMessage: vi.fn(async (message: unknown): Promise<unknown> => {
+      let response: unknown = { ok: true };
+      // Mirror extension messaging: listeners may return true and call
+      // sendResponse asynchronously.
+      const sendResponse = (r: unknown) => {
+        response = r;
+      };
+      for (const listener of messageListeners) {
+        void listener(message, { tab: { id: 1 } }, sendResponse);
+      }
+      return response;
+    }),
     onMessage: {
       addListener: vi.fn((fn: unknown) => {
         if (typeof fn === 'function') {

@@ -8,6 +8,7 @@ export function makeTestEnv(overrides: Partial<Env> = {}): Env {
     OPENAI_BASE_URL: 'https://api.openai.com/v1',
     OPENAI_TRANSPORT: 'responses',
     OPENAI_RESPONSE_FORMAT: 'json_schema',
+    OPENAI_THINKING_MODE: 'default',
     OPENAI_MODEL: 'gpt-test',
     PORT: 8787,
     ALLOWED_EXTENSION_ORIGIN: '',
@@ -44,9 +45,14 @@ export function validSuggestionsJson(count = 3): string {
   ];
   const suggestions = Array.from({ length: count }, (_, i) => ({
     tone: 'insightful',
-    text: texts[i % texts.length] ?? `Distinct suggestion number ${i + 1} with a practical observation.`,
+    text:
+      texts[i % texts.length] ??
+      `Distinct suggestion number ${i + 1} with a practical observation.`,
   }));
-  return JSON.stringify({ postSummary: 'A post about shipping an analytics dashboard.', suggestions });
+  return JSON.stringify({
+    postSummary: 'A post about shipping an analytics dashboard.',
+    suggestions,
+  });
 }
 
 export function makeFakeClient(

@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Privacy Policy — InsightReply</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        font-family: Inter, ui-sans-serif, system-ui, sans-serif;
+      }
+      body {
+        margin: 0;
+        background: #07111f;
+        color: #e7eef8;
+      }
+      main {
+        width: min(48rem, calc(100% - 3rem));
+        margin: 0 auto;
+        padding: 4rem 0 6rem;
+      }
+      a {
+        color: #67e8f9;
+      }
+      h1 {
+        font-size: clamp(2.2rem, 7vw, 4rem);
+        letter-spacing: -0.04em;
+        margin-bottom: 0.5rem;
+      }
+      h2 {
+        margin-top: 2.5rem;
+        color: #fff;
+      }
+      p,
+      li {
+        color: #b8c4d4;
+        line-height: 1.7;
+      }
+      .updated {
+        color: #7f91a7;
+      }
+      .notice {
+        border-left: 3px solid #67e8f9;
+        padding-left: 1rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">← InsightReply</a></p>
+      <h1>Privacy Policy</h1>
+      <p class="updated">InsightReply by Hadesh.ai · Last updated August 8, 2026</p>
+      <p>
+        InsightReply is a user-controlled writing assistant for drafting LinkedIn comments. It never
+        publishes comments automatically or acts on the user's behalf without an explicit action.
+      </p>
+
+      <h2>How InsightReply works</h2>
+      <ol>
+        <li>InsightReply adds an “AI Comment” button to LinkedIn posts.</li>
+        <li>
+          When the user selects a post, the extension reads that post's author display name, text,
+          and URL.
+        </li>
+        <li>
+          When the user presses Generate, that selected content and the user's writing preferences
+          are sent to the configured InsightReply backend and then to the configured AI provider to
+          create suggestions.
+        </li>
+        <li>
+          The user reviews, edits, copies, or inserts a suggestion and remains responsible for
+          pressing Post on LinkedIn.
+        </li>
+      </ol>
+
+      <h2>Data processed</h2>
+      <ul>
+        <li>
+          <strong>Selected website content:</strong> the selected post's author display name, text,
+          and URL.
+        </li>
+        <li>
+          <strong>Writing preferences:</strong> tone, length, language, perspective, and an optional
+          writing profile.
+        </li>
+        <li>
+          <strong>Extension settings:</strong> stored in Chrome's synchronized extension storage.
+        </li>
+        <li>
+          <strong>Selected-post state:</strong> stored only in Chrome's session storage and cleared
+          with the browser session.
+        </li>
+        <li>
+          <strong>Caller IP address:</strong> processed by the backend and hosting provider for
+          security and rate limiting.
+        </li>
+      </ul>
+
+      <h2>Use and sharing</h2>
+      <p>
+        Selected post content and writing preferences are used only to provide requested comment
+        suggestions. They are transmitted to the configured backend and its AI provider for that
+        purpose. Hadesh.ai does not sell this data or share it with advertisers. No third-party
+        analytics are embedded in the extension.
+      </p>
+
+      <h2>Storage and retention</h2>
+      <p>
+        The InsightReply backend does not use a database to store selected posts. Application logs
+        contain request metadata such as route, status, and latency and deliberately exclude post
+        content and writing-profile text. The hosting provider and AI provider may process limited
+        technical or request data under their respective service terms and retention policies.
+      </p>
+
+      <h2>User controls</h2>
+      <ul>
+        <li>Clear Selected Post removes the current post from session storage.</li>
+        <li>Clear Settings resets stored extension preferences.</li>
+        <li>Removing the extension removes its extension-scoped browser data.</li>
+        <li>Users should avoid selecting confidential information for AI processing.</li>
+      </ul>
+
+      <h2>What InsightReply does not do</h2>
+      <ul>
+        <li>It does not automatically publish comments.</li>
+        <li>
+          It does not collect LinkedIn passwords, cookies, private messages, connections, or profile
+          history.
+        </li>
+        <li>
+          It does not crawl profiles, scroll the feed, bulk-generate comments, or simulate activity.
+        </li>
+      </ul>
+
+      <h2>Contact</h2>
+      <p>Privacy questions: <a href="mailto:privacy@hadesh.ai">privacy@hadesh.ai</a></p>
+      <p class="notice">
+        This policy describes the product's current technical behavior. It is not legal advice or a
+        claim of compliance with any particular privacy law.
+      </p>
+    </main>
+  </body>
+</html>

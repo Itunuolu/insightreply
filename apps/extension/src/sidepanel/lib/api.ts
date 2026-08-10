@@ -27,6 +27,11 @@ interface GenerateParams {
   };
 }
 
+export const WEB_STORE_EXTENSION_ID = 'beibbhgjopabhoilhpjmekecnbegpllc';
+
+const RETRYABLE_STATUS_CODES = new Set([408, 425, 500, 502, 503, 504]);
+const RETRY_DELAYS_MS = [350, 1_000] as const;
+
 function buildRequest(params: GenerateParams) {
   const { settings, post, compose } = params;
   return {
@@ -52,10 +57,7 @@ function validateRequest(params: GenerateParams) {
   const payload = buildRequest(params);
   const parsed = generateCommentsRequestSchema.safeParse(payload);
   if (!parsed.success) {
-    throw panelError(
-      'VALIDATION_ERROR',
-      parsed.error.issues.map((i) => i.message).join(' '),
-    );
+    throw panelError('VALIDATION_ERROR', parsed.error.issues.map((i) => i.message).join(' '));
   }
   return parsed.data;
 }
@@ -70,45 +72,85 @@ export function normalizeBackendUrl(url: string): string {
 }
 
 async function requestBackend(url: string, payload: unknown): Promise<unknown> {
-  let response: Response;
-  try {
-    response = await fetch(`${normalizeBackendUrl(url)}/v1/comments/generate`, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(90_000),
-    });
-  } catch (err) {
-    if (err instanceof DOMException && err.name === 'TimeoutError') {
-      throw panelError('NETWORK_ERROR', 'The AI took too long to respond. Please try again.');
+  const target = normalizeBackendUrl(url);
+  const maxAttempts = isLocalBackend(target) ? 1 : RETRY_DELAYS_MS.length + 1;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    let response: Response;
+    try {
+      response = await fetch(`${target}/v1/comments/generate`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(90_000),
+      });
+    } catch (err) {
+      if (err instanceof DOMException && err.name === 'TimeoutError') {
+        throw panelError(
+          'NETWORK_TIMEOUT',
+          'The AI service took too long to respond. Your request was not completed; please retry.',
+        );
+      }
+      if (attempt + 1 < maxAttempts) {
+        await waitBeforeRetry(attempt);
+        continue;
+      }
+      throw unreachableBackendError(target, maxAttempts);
     }
-    // Name the URL that failed: the most common cause is a build still pointing
-    // at a backend on the developer's own machine, which no other user can reach.
-    const target = normalizeBackendUrl(url);
-    throw panelError(
+
+    let body: unknown = null;
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+
+    if (!response.ok) {
+      if (RETRYABLE_STATUS_CODES.has(response.status) && attempt + 1 < maxAttempts) {
+        await waitBeforeRetry(attempt);
+        continue;
+      }
+      const parsed = apiErrorSchema.safeParse(body);
+      if (parsed.success) {
+        throw panelError(parsed.data.error.code, parsed.data.error.message);
+      }
+      throw panelError(
+        'BACKEND_ERROR',
+        `The backend returned HTTP ${response.status}. Please retry in a moment.`,
+      );
+    }
+
+    return body;
+  }
+
+  throw unreachableBackendError(target, maxAttempts);
+}
+
+async function waitBeforeRetry(attempt: number): Promise<void> {
+  const delay = RETRY_DELAYS_MS[attempt] ?? RETRY_DELAYS_MS.at(-1) ?? 1_000;
+  await new Promise<void>((resolve) => globalThis.setTimeout(resolve, delay));
+}
+
+function unreachableBackendError(target: string, attempts: number): PanelError {
+  if (isLocalBackend(target)) {
+    return panelError(
       'NETWORK_ERROR',
-      isLocalBackend(target)
-        ? `Could not reach ${target}. That backend runs on this machine — start it, or set a deployed backend URL in Settings.`
-        : `Could not reach ${target}. Check the backend URL in Settings and that the server is running.`,
+      `Could not reach ${target}. That backend runs on this machine — start it, or use the deployed backend URL in Settings.`,
     );
   }
 
-  let body: unknown = null;
-  try {
-    body = await response.json();
-  } catch {
-    body = null;
+  const runtimeId = globalThis.chrome?.runtime?.id;
+  if (runtimeId && runtimeId !== WEB_STORE_EXTENSION_ID) {
+    return panelError(
+      'EXTENSION_ID_MISMATCH',
+      `This is an unpacked or duplicate InsightReply copy (ID ${runtimeId}). Disable it in edge://extensions and use the Web Store copy (ID ${WEB_STORE_EXTENSION_ID}).`,
+    );
   }
 
-  if (!response.ok) {
-    const parsed = apiErrorSchema.safeParse(body);
-    if (parsed.success) {
-      throw panelError(parsed.data.error.code, parsed.data.error.message);
-    }
-    throw panelError('BACKEND_ERROR', 'The backend returned an unexpected response. Please try again.');
-  }
-
-  return body;
+  return panelError(
+    'NETWORK_ERROR',
+    `Could not reach ${target} after ${attempts} attempts. Check your internet connection and retry; InsightReply will automatically recover from brief service interruptions.`,
+  );
 }
 
 function validateResponse(raw: unknown): GenerateCommentsResponse {
@@ -130,9 +172,11 @@ export async function generateComments(params: GenerateParams): Promise<Generate
 }
 
 /** Regenerates a single suggestion, requesting one fresh candidate. */
-export async function regenerateSingleSuggestion(params: GenerateParams & {
-  currentTexts: string[];
-}): Promise<GenerateCommentsResponse['suggestions'][number] | null> {
+export async function regenerateSingleSuggestion(
+  params: GenerateParams & {
+    currentTexts: string[];
+  },
+): Promise<GenerateCommentsResponse['suggestions'][number] | null> {
   const payload = validateRequest({
     ...params,
     settings: { ...params.settings, suggestionCount: 2 },
@@ -144,7 +188,8 @@ export async function regenerateSingleSuggestion(params: GenerateParams & {
 
   // Prefer a candidate that is not nearly identical to the other drafts.
   const best = response.suggestions.find(
-    (candidate) => !params.currentTexts.some((existing) => similarity(existing, candidate.text) > 0.6),
+    (candidate) =>
+      !params.currentTexts.some((existing) => similarity(existing, candidate.text) > 0.6),
   );
   return best ?? first;
 }

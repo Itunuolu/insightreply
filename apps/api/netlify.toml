@@ -1,0 +1,21 @@
+[build]
+  command = "pnpm --filter @insightreply/api build:netlify"
+  publish = "/apps/api/netlify/public"
+  functions = "/apps/api/netlify/dist-functions"
+
+[build.environment]
+  NODE_VERSION = "22"
+  PNPM_VERSION = "10.32.1"
+
+[functions]
+  # The build command produces one dependency-complete ESM file. Skipping a
+  # second bundling pass avoids pnpm symlink resolution differences in Lambda.
+  node_bundler = "none"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    X-Frame-Options = "DENY"
+    Referrer-Policy = "no-referrer"
+    Permissions-Policy = "camera=(), microphone=(), geolocation=()"
