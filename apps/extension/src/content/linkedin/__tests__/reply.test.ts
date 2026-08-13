@@ -14,6 +14,7 @@ import {
   POST_WITH_MODERN_ICON_REPLY_COMPOSER,
   POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
   POST_WITH_MULTIPLE_REPLY_THREADS,
+  POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER,
   POST_WITH_REPLY_THREAD,
 } from '../../../test/fixtures.js';
 
@@ -118,6 +119,48 @@ describe('reply discovery and extraction', () => {
     expect(serialized).not.toContain('impressions');
     expect(serialized).not.toContain('uhmmmmmm');
     expect(serialized).not.toContain('reaction');
+  });
+
+  it('bounds an incoming reply when LinkedIn marks the whole thread as one native comment', () => {
+    const root = FEED_CONTAINER(POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER);
+    const comments = findCommentContainers(root);
+    expect(comments).toHaveLength(1);
+
+    const thread = comments[0]!;
+    injectReplyButton(thread);
+    expect(
+      root.querySelector('.modern-reply-composer button.insightreply-reply-button'),
+    ).not.toBeNull();
+
+    const selection = extractReplySelection(thread);
+    expect(selection).toMatchObject({
+      replyContext: {
+        authorName: 'Oyindamola Oye-Daniel',
+        text: 'Amazing, thanks for this beautiful contribution. 🙏',
+        parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
+        parentCommentText:
+          'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
+      },
+    });
+    expect(JSON.stringify(selection?.replyContext)).not.toMatch(
+      /Senior Business Analyst|impressions|uhmmmmmm|reaction/,
+    );
+  });
+
+  it('recomputes bounded context at click time when discovery did not prime the container', () => {
+    const root = FEED_CONTAINER(POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER);
+    const thread = root.querySelector('[data-view-name="comment"]') as HTMLElement;
+
+    const selection = extractReplySelection(thread);
+    expect(selection).toMatchObject({
+      replyContext: {
+        authorName: 'Oyindamola Oye-Daniel',
+        text: 'Amazing, thanks for this beautiful contribution. 🙏',
+        parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
+        parentCommentText:
+          'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
+      },
+    });
   });
 });
 

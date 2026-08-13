@@ -183,11 +183,11 @@ const fixture = `<!doctype html>
         <div class="feed-shared-inline-show-more-text"><span class="update-components-text">Good product discovery changes what a team decides not to build.</span></div>
         <div class="feed-shared-social-actions"><button aria-label="Like">Like</button><button aria-label="Comment">Comment</button><button aria-label="Repost">Repost</button></div>
         <div class="modern-comments">
-          <div class="modern-parent-comment" data-comment-id="modern-user-comment">
+          <div class="modern-parent-comment" data-comment-id="modern-user-comment" data-view-name="comment" dir="ltr">
             <div class="comment-bubble">
-              <a href="/in/itunuoluwa"><span class="modern-author" dir="auto">Itunuoluwa Akinkugbe</span></a>
+              <a href="/in/itunuoluwa"><span class="modern-author">Itunuoluwa Akinkugbe</span><span> • You</span><span>Senior Business Analyst | Digital Transformation | AI & Automation | Business Process Improvement | Requirements Analysis | Banking & Fintech | Agile Delivery | Product Strategy</span></a>
               <div class="modern-subtitle">Senior Business Analyst | Digital Transformation | 5h</div>
-              <div class="modern-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
+              <div class="modern-copy" dir="ltr"><span>I suspect the real challenge lies in measuring what you enable rather than what you deliver.</span><button>... more</button></div>
             </div>
             <div class="modern-actions">
               <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg>1 reaction</button>
@@ -196,12 +196,13 @@ const fixture = `<!doctype html>
             </div>
             <div class="modern-incoming-reply" data-comment-id="modern-incoming-reply">
               <div class="comment-bubble">
-                <a href="/in/oyindamola"><span class="modern-author" dir="auto">Oyindamola Oye-Daniel</span></a>
+                <a href="/in/oyindamola"><span class="modern-author">Oyindamola Oye-Daniel</span><span>Author</span><span>Senior Product Manager | Building Scalable Products in Ambiguous Environments | Execution → Adoption → Growth → Impact | Founder: PM Women’s Hub & Product Bosslady Academy | Author: My Product Journey</span></a>
                 <div class="modern-subtitle">Author | Senior Product Manager | 4h</div>
+                <span>6h</span>
                 <div class="modern-copy" dir="ltr">
                   <a href="/in/itunuoluwa">Itunuoluwa Akinkugbe</a>
                   <span>uhmmmmmm</span>
-                  <div>Amazing, thanks for this beautiful contribution.</div>
+                  <div>Amazing, thanks for this beautiful contribution. 🙏</div>
                 </div>
               </div>
               <div class="modern-actions">
@@ -293,7 +294,7 @@ if (
   !audits.linkedin.noMisleadingToast ||
   !audits.linkedin.panelSynced ||
   audits.linkedin.selectedReply?.authorName !== 'Oyindamola Oye-Daniel' ||
-  audits.linkedin.selectedReply?.text !== 'Amazing, thanks for this beautiful contribution.' ||
+  audits.linkedin.selectedReply?.text !== 'Amazing, thanks for this beautiful contribution. 🙏' ||
   audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe' ||
   audits.linkedin.selectedReply?.parentCommentText !==
     'I suspect the real challenge lies in measuring what you enable rather than what you deliver.' ||

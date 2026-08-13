@@ -88,18 +88,33 @@ function branchUnder(ancestor: HTMLElement, descendant: HTMLElement): HTMLElemen
 }
 
 function profileLinkAuthor(link: HTMLAnchorElement): string | undefined {
+  const leafSpans = Array.from(link.querySelectorAll<HTMLElement>('span')).filter(
+    (span) => !span.querySelector('span'),
+  );
   const candidates = [
     link.querySelector<HTMLElement>('[data-testid="comment-author-name"]'),
     link.querySelector<HTMLElement>('[data-view-name="comment-author"]'),
     link.querySelector<HTMLElement>('.comments-post-meta__name-text'),
     link.querySelector<HTMLElement>('.comments-comment-meta__description-title'),
+    ...leafSpans,
     link.querySelector<HTMLElement>('span[dir="auto"]'),
     link.querySelector<HTMLElement>('span[aria-hidden="true"]'),
     link,
   ];
   for (const candidate of candidates) {
-    const name = candidate?.textContent?.replace(/\s+/g, ' ').trim();
-    if (name && name.length <= 200) return name;
+    const name = candidate?.textContent
+      ?.replace(/\s+/g, ' ')
+      .trim()
+      .replace(/\s*[•·]\s*(?:You|1st|2nd|3rd\+?)$/i, '')
+      .trim();
+    if (
+      name &&
+      name.length <= 120 &&
+      /^\p{L}[\p{L}\p{M}'’.-]*(?:\s+\p{L}[\p{L}\p{M}'’.-]*){1,7}$/u.test(name) &&
+      !/^(?:Current user|LinkedIn member|Author)$/i.test(name)
+    ) {
+      return name;
+    }
   }
   return undefined;
 }
@@ -110,8 +125,9 @@ function isInlineProfileMention(link: HTMLAnchorElement): boolean {
   );
   if (!textBlock || textBlock === link) return false;
   const author = normalizeInlineText(profileLinkAuthor(link));
+  const linkText = normalizeInlineText(link.textContent);
   const surroundingText = normalizeInlineText(textBlock.textContent);
-  return author.length > 0 && surroundingText.length > author.length;
+  return author.length > 0 && linkText === author && surroundingText.length > linkText.length;
 }
 
 function profileAuthorsBeforeEditor(
@@ -171,7 +187,25 @@ function cleanReplyCandidate(element: HTMLElement): string {
   ]) {
     for (const child of clone.querySelectorAll<HTMLElement>(selector)) child.remove();
   }
-  return clone.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+  for (const block of clone.querySelectorAll<HTMLElement>('div, p, li, br')) {
+    block.insertAdjacentText('beforebegin', ' ');
+  }
+  return (
+    clone.textContent
+      ?.replace(/\s+/g, ' ')
+      .trim()
+      .replace(/^(?:u?h?m{3,})[,.!…-]*\s*/i, '')
+      .trim() ?? ''
+  );
+}
+
+function isReplyMetadataText(text: string): boolean {
+  return (
+    /^(?:\.{3}|…)?\s*more$/i.test(text) ||
+    /^\d+\s*(?:s|m|h|d|w|mo|y|yr)s?$/i.test(text) ||
+    /^\d+(?:\s+(?:reaction|reactions|impression|impressions))?$/i.test(text) ||
+    /^(?:Author|You|LinkedIn member)$/i.test(text)
+  );
 }
 
 function extractTextBetween(
@@ -189,6 +223,8 @@ function extractTextBetween(
       candidate === end ||
       candidate.contains(start) ||
       candidate.contains(end) ||
+      start.contains(candidate) ||
+      end.contains(candidate) ||
       !precedes(start, candidate) ||
       !precedes(candidate, end) ||
       !isVisible(candidate)
@@ -203,7 +239,7 @@ function extractTextBetween(
     if (!rawDirectText && !knownTextContainer) continue;
 
     const text = cleanReplyCandidate(candidate);
-    if (!text || text.length > 4_000) continue;
+    if (!text || text.length > 4_000 || isReplyMetadataText(text)) continue;
 
     const className = typeof candidate.className === 'string' ? candidate.className : '';
     let score = 0;
@@ -212,8 +248,11 @@ function extractTextBetween(
     if (/[.!?]/.test(text) || text.length >= 24) score += 25;
     if (/copy|content|body|commentary/i.test(className)) score += 20;
     if (/meta|subtitle|action|social|reaction/i.test(className)) score -= 100;
-    if (candidate.querySelector('a[href*="/in/"]')) score -= 80;
-    if (candidate.querySelector('button, [role="button"]')) score -= 60;
+    if ((text.match(/\|/g)?.length ?? 0) >= 2) score -= 150;
+    const profileLinkCount = candidate.querySelectorAll('a[href*="/in/"]').length;
+    if (profileLinkCount === 1) score -= 50;
+    if (profileLinkCount > 1) score -= 100;
+    if (candidate.querySelector('button, [role="button"]') && text.length < 24) score -= 60;
     if (/\b(?:reaction|reactions|impression|impressions)\b/i.test(text)) score -= 100;
     score += Math.min(text.length, 200) / 200;
 
@@ -227,6 +266,10 @@ function captureBoundedReplyContext(editor: HTMLElement, container: HTMLElement)
   if (!post) return;
   const composer = findComposerScope(editor);
   const authors = profileAuthorsBeforeEditor(post, composer, editor);
+  const authorsInsideContainer = authors.filter((author) => container.contains(author));
+  if (container.matches(NATIVE_COMMENT_CONTAINER_SELECTOR) && authorsInsideContainer.length <= 1) {
+    return;
+  }
   const targetAuthor = selectTargetAuthor(authors, editor, composer);
   if (!targetAuthor) return;
 
@@ -338,9 +381,7 @@ export function findCommentContainers(root: ParentNode = document): HTMLElement[
     if (!container) continue;
     container.setAttribute(DYNAMIC_COMMENT_ATTRIBUTE, 'true');
     editorTargetRegistry.set(editor, container);
-    if (!container.matches(NATIVE_COMMENT_CONTAINER_SELECTOR)) {
-      captureBoundedReplyContext(editor, container);
-    }
+    captureBoundedReplyContext(editor, container);
     if (!seen.has(container)) {
       seen.add(container);
       comments.push(container);
@@ -515,6 +556,8 @@ function findOwnReplyWrap(container: HTMLElement): HTMLElement | null {
 }
 
 export function extractReplySelection(container: HTMLElement): SelectedPost | null {
+  const activeEditor = findReplyEditor(container);
+  if (activeEditor) captureBoundedReplyContext(activeEditor, container);
   const bounded = replyContextRegistry.get(container);
   const incomingText = bounded?.text ?? extractCommentText(container);
   if (!incomingText || incomingText.length > 4_000) return null;

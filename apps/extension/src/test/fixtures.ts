@@ -288,7 +288,7 @@ export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
     <div class="modern-parent-comment">
       <a href="/in/itunuoluwa"><span dir="auto">Itunuoluwa Akinkugbe</span></a>
       <div class="modern-parent-meta">Senior Business Analyst | Digital Transformation | 5h</div>
-      <div class="modern-parent-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
+      <div class="modern-parent-copy" dir="ltr"><span>I suspect the real challenge lies in measuring what you enable rather than what you deliver.</span><button>... more</button></div>
       <div class="modern-parent-actions">
         <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg>1 reaction</button>
         <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg>1</button>
@@ -297,6 +297,7 @@ export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
       <div class="modern-incoming-reply">
         <a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>
         <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>
+        <span class="modern-incoming-time">6h</span>
         <div class="modern-incoming-copy" dir="ltr">
           <a class="modern-inline-mention" href="/in/itunuoluwa">Itunuoluwa Akinkugbe</a>
           <span>uhmmmmmm</span>
@@ -316,6 +317,29 @@ export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
   </section>
 </div>
 `;
+
+/**
+ * The live LinkedIn reply journey can mark the outer parent/reply thread as a
+ * native comment. The incoming reply and its composer then live inside that
+ * same native boundary, so generic comment extraction sees the whole thread.
+ */
+export const POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER =
+  POST_WITH_MODERN_NESTED_REPLY_COMPOSER.replace(
+    '<a href="/in/founder"><span dir="auto">Product Founder</span></a>',
+    '<a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>',
+  )
+    .replace(
+      '<div class="modern-parent-comment">',
+      '<div class="modern-parent-comment" data-view-name="comment" dir="ltr">',
+    )
+    .replace(
+      '<a href="/in/itunuoluwa"><span dir="auto">Itunuoluwa Akinkugbe</span></a>\n      <div class="modern-parent-meta">Senior Business Analyst | Digital Transformation | 5h</div>',
+      '<a class="modern-parent-profile" href="/in/itunuoluwa"><span>Itunuoluwa Akinkugbe</span><span> • You</span><span>Senior Business Analyst | Digital Transformation | AI & Automation | Business Process Improvement | Requirements Analysis | Banking & Fintech | Agile Delivery | Product Strategy</span></a>\n      <div class="modern-parent-meta">Senior Business Analyst | Digital Transformation | 5h</div>',
+    )
+    .replace(
+      '<a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>\n        <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>',
+      '<a class="modern-incoming-profile" href="/in/oyindamola"><span>Oyindamola Oye-Daniel</span><span>Author</span><span>Senior Product Manager | Building Scalable Products in Ambiguous Environments | Execution → Adoption → Growth → Impact | Founder: PM Women’s Hub & Product Bosslady Academy | Author: My Product Journey</span></a>\n        <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>',
+    );
 
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');

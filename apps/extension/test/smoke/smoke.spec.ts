@@ -10,6 +10,7 @@ import {
   POST_WITH_OPEN_EDITOR,
   POST_WITH_MODERN_ICON_REPLY_COMPOSER,
   POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
+  POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER,
   POST_WITH_REPLY_THREAD,
   TRUNCATED_POST,
 } from '../../src/test/fixtures.js';
@@ -422,8 +423,8 @@ test.describe('InsightReply extension smoke test', () => {
     await linkedin.route('https://www.linkedin.com/**', async (route) => {
       await route.fulfill({
         status: 200,
-        contentType: 'text/html',
-        body: `<!doctype html><html><body><main>${POST_WITH_MODERN_NESTED_REPLY_COMPOSER}</main></body></html>`,
+        contentType: 'text/html; charset=utf-8',
+        body: `<!doctype html><html><body><main>${POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER}</main></body></html>`,
       });
     });
     await linkedin.goto('https://www.linkedin.com/feed/');
@@ -434,7 +435,15 @@ test.describe('InsightReply extension smoke test', () => {
 
     await expect(panel.getByText('Reply conversation')).toBeVisible({ timeout: 5_000 });
     await expect(panel.getByText('Reply from Oyindamola Oye-Daniel')).toBeVisible();
-    await expect(panel.getByText('Amazing, thanks for this beautiful contribution.')).toBeVisible();
+    await expect(
+      panel.getByText('Amazing, thanks for this beautiful contribution. 🙏'),
+    ).toBeVisible();
+    await expect(panel.getByText('Your comment')).toBeVisible();
+    await expect(
+      panel.getByText(
+        'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
+      ),
+    ).toBeVisible();
     await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
 
     await linkedin.close();
