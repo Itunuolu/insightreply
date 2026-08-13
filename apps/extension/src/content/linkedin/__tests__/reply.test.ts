@@ -224,7 +224,7 @@ describe('AI Reply button', () => {
     );
   });
 
-  it('shows a recovery message when Chrome stores the reply but cannot open the panel', async () => {
+  it('does not show a false sidebar error when the reply selection succeeded', async () => {
     const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
     const incoming = root.querySelector('[data-urn="urn:li:comment:incoming_1"]') as HTMLElement;
     injectReplyButton(incoming);
@@ -234,8 +234,21 @@ describe('AI Reply button', () => {
     (incoming.querySelector('.insightreply-reply-button') as HTMLButtonElement).click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
+    expect(document.querySelector('.insightreply-toast')).toBeNull();
+  });
+
+  it('shows an error when the reply selection itself fails', async () => {
+    const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
+    const incoming = root.querySelector('[data-urn="urn:li:comment:incoming_1"]') as HTMLElement;
+    injectReplyButton(incoming);
+    const sendMessage = chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    sendMessage.mockResolvedValue({ ok: false, message: 'Selection storage failed.' });
+
+    (incoming.querySelector('.insightreply-reply-button') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
     expect(document.querySelector('.insightreply-toast')?.textContent).toContain(
-      'Open InsightReply from the toolbar icon',
+      'could not select this reply',
     );
   });
 

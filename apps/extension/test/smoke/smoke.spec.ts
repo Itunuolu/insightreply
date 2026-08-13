@@ -446,6 +446,14 @@ test.describe('InsightReply extension smoke test', () => {
     ).toBeVisible();
     await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
 
+    // Regression: selecting the same reply again while the side panel is
+    // already open must synchronize silently. Chrome can reject a redundant
+    // sidePanel.open() call; that is not a selection failure and must not show
+    // the old "could not open" recovery toast.
+    await aiReply.click();
+    await expect(panel.getByText('Reply from Oyindamola Oye-Daniel')).toBeVisible();
+    await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
+
     await linkedin.close();
     await panel.close();
   });

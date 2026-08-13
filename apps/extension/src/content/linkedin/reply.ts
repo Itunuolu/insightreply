@@ -681,12 +681,9 @@ async function handleReplyButtonClick(
 
   button.setAttribute('disabled', 'true');
   try {
-    const opened = await dispatchSelection(post);
-    if (!opened) {
-      showToast('Reply selected. Open InsightReply from the toolbar icon to continue.');
-    }
+    await dispatchSelection(post);
   } catch {
-    showToast('Could not open InsightReply. Open it from the toolbar icon and try again.');
+    showToast('InsightReply could not select this reply. Reload LinkedIn and try again.');
   } finally {
     button.removeAttribute('disabled');
   }

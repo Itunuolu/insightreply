@@ -245,7 +245,7 @@ API and privacy policy are available at:
 - `https://insightreply-api.vercel.app/privacy-policy/`
 
 Build each Web Store package with
-`IR_DEFAULT_BACKEND_URL=https://insightreply-api.vercel.app`. Version 1.1.9 also
+`IR_DEFAULT_BACKEND_URL=https://insightreply-api.vercel.app`. Version 1.1.9 and later also
 migrates the former official Netlify URL from Chrome sync storage while
 preserving user-configured custom backends.
 

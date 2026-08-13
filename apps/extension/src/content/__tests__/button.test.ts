@@ -66,6 +66,34 @@ describe('button click flow', () => {
     expect(message.post.postText).toContain('analytics dashboard');
   });
 
+  it('does not show a false sidebar error when selection succeeded but Chrome did not reopen it', async () => {
+    const root = FEED_CONTAINER(FEED_POST_CLASSIC);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+    injectActionButton(container);
+    const sendMessage = chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    sendMessage.mockResolvedValue({ ok: true, opened: false });
+
+    (container.querySelector('.insightreply-button') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector('.insightreply-toast')).toBeNull();
+  });
+
+  it('shows an error when the selection itself fails', async () => {
+    const root = FEED_CONTAINER(FEED_POST_CLASSIC);
+    const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
+    injectActionButton(container);
+    const sendMessage = chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    sendMessage.mockResolvedValue({ ok: false, message: 'Selection storage failed.' });
+
+    (container.querySelector('.insightreply-button') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector('.insightreply-toast')?.textContent).toContain(
+      'could not select this post',
+    );
+  });
+
   it('shows a truncation toast without sending the post', async () => {
     const root = FEED_CONTAINER(TRUNCATED_POST);
     const container = root.querySelector('.feed-shared-update-v2') as HTMLElement;
@@ -83,7 +111,11 @@ describe('button click flow', () => {
     expect(toast?.textContent).toContain('Expand the post first');
 
     const sent = sendMessage.mock.calls.flat();
-    expect(sent.some((m: { type?: string }) => m && typeof m === 'object' && m.type === 'IR_SELECT_POST')).toBe(false);
+    expect(
+      sent.some(
+        (m: { type?: string }) => m && typeof m === 'object' && m.type === 'IR_SELECT_POST',
+      ),
+    ).toBe(false);
   });
 
   it('sends the raw selection through the full content-script pipeline', async () => {

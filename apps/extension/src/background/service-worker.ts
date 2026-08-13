@@ -33,7 +33,7 @@ function openPanel(tabId?: number): Promise<void> {
 async function handleSelectPost(
   post: SelectedPost,
   sender: chrome.runtime.MessageSender,
-): Promise<{ ok: true; opened: boolean }> {
+): Promise<void> {
   const parsed = selectedPostSchema.safeParse(post);
   if (!parsed.success) {
     throw new Error(parsed.error.issues.map((i) => i.message).join(' '));
@@ -46,16 +46,16 @@ async function handleSelectPost(
 
   // The panel may already be open. Calling sidePanel.open() again can be
   // rejected by Chrome even though selection storage and panel sync succeeded.
-  if (connectedPanels.size > 0) return { ok: true, opened: true };
+  if (connectedPanels.size > 0) return;
 
   // Opening the panel is best-effort: Chrome rejects sidePanel.open() outside a
   // user gesture, and that raw API string used to surface as the user-facing
   // toast even though the selection itself had already been stored.
   try {
     await openPanel(sender.tab?.id);
-    return { ok: true, opened: true };
   } catch {
-    return { ok: true, opened: false };
+    // Selection is already stored. Chrome can reject a redundant open while
+    // the panel is visible, so this must never be reported as selection failure.
   }
 }
 
@@ -75,8 +75,7 @@ async function handleInsertComment(
 
   const attempt = async (): Promise<RuntimeResponse> => {
     const response = (await chrome.tabs.sendMessage(selectedTabId, message)) as
-      | RuntimeResponse
-      | undefined;
+      RuntimeResponse | undefined;
     if (response && typeof response === 'object' && 'ok' in response) {
       return response;
     }
@@ -118,8 +117,8 @@ chrome.runtime.onMessage.addListener(
 
       try {
         if (parsed.message.type === 'IR_SELECT_POST') {
-          const result = await handleSelectPost(parsed.message.post, sender);
-          sendResponse({ ok: true, opened: result.opened });
+          await handleSelectPost(parsed.message.post, sender);
+          sendResponse({ ok: true });
           return;
         }
         if (parsed.message.type === 'IR_INSERT_COMMENT') {
@@ -127,7 +126,11 @@ chrome.runtime.onMessage.addListener(
           sendResponse(result);
           return;
         }
-        sendResponse({ ok: false, code: 'UNSUPPORTED_MESSAGE', message: 'Unsupported message type.' });
+        sendResponse({
+          ok: false,
+          code: 'UNSUPPORTED_MESSAGE',
+          message: 'Unsupported message type.',
+        });
       } catch (err) {
         sendResponse({
           ok: false,

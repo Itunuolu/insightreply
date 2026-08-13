@@ -1,13 +1,13 @@
 InsightReply — Chrome Web Store package
 
 name              InsightReply — AI Comment & Reply Assistant
-version           1.1.9
+version           1.1.10
 manifest_version  3
 permissions       storage, activeTab, scripting, sidePanel
 host_permissions  https://*.linkedin.com/*
 
 default backend   https://insightreply-api.vercel.app
 files             10
-sha256            515d1342a3a094893309032fc39cd422ccc70887175e9f527c284d528955a0b2
+sha256            c7a00a32d3834884401d9d28286d95584ddaa156370e1e1d946c507a6a092f98
 
 Ready to upload. Confirm the backend above is reachable over HTTPS first.
