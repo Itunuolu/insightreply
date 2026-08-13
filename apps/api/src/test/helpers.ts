@@ -67,6 +67,22 @@ export function validSuggestionsJson(count = 3): string {
   });
 }
 
+export function validReplySuggestionsJson(count = 3): string {
+  const texts = [
+    'I appreciate that, Grace. The interviews changed our priorities by revealing which dashboard decisions were creating friction for customers.',
+    'Thank you, Grace. The clearest shift was moving cohort comparisons ahead of several features the team had originally considered essential.',
+    'I appreciate the question, Grace. Those interviews made the team simplify the workflow and focus the first release on faster decision-making.',
+    'Thanks, Grace. Customer feedback changed both the information hierarchy and the metrics the dashboard made easiest to act on.',
+  ];
+  return JSON.stringify({
+    postSummary: 'A conversation about how customer interviews changed an analytics product.',
+    suggestions: Array.from({ length: count }, (_, i) => ({
+      tone: 'insightful',
+      text: texts[i % texts.length],
+    })),
+  });
+}
+
 export function makeFakeClient(
   handler: (params: Record<string, unknown>) => Promise<{
     output_text?: string;

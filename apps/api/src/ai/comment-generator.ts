@@ -149,6 +149,9 @@ export class CommentGenerator {
       emojiPreference: request.preferences.emojiPreference,
       maxQuestionModeTone: request.preferences.tone === 'question_led' ? 'question_led' : 'none',
       allowHashtags: false,
+      reply: request.reply
+        ? { authorName: request.reply.authorName, text: request.reply.text }
+        : undefined,
     });
 
     if (filtered.length === 0) {

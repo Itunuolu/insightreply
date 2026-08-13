@@ -3,6 +3,7 @@ import {
   makeFakeClient,
   makeTestEnv,
   validReplyRequest,
+  validReplySuggestionsJson,
   validRequest,
   validSuggestionsJson,
 } from './helpers.js';
@@ -102,7 +103,7 @@ describe('HTTP API', () => {
     let modelInput = '';
     const client = makeFakeClient(async (params) => {
       modelInput = String(params.input ?? '');
-      return { output_text: validSuggestionsJson(3) };
+      return { output_text: validReplySuggestionsJson(3) };
     });
     const app = await buildApp({ env: makeTestEnv(), client });
     const response = await app.inject({
@@ -112,9 +113,9 @@ describe('HTTP API', () => {
     });
     expect(response.statusCode).toBe(200);
     expect(response.json().suggestions).toHaveLength(3);
-    expect(modelInput).toContain('selected_linkedin_reply_context');
+    expect(modelInput).toContain('primary_incoming_reply_to_answer');
     expect(modelInput).toContain('What changed in the product');
-    expect(modelInput).toContain('Task: Write a reply');
+    expect(modelInput).toContain('Task: Write a direct reply');
     await app.close();
   });
 
@@ -171,7 +172,9 @@ describe('CORS origin allow-list', () => {
     });
 
   it('accepts every origin in a comma-separated list', async () => {
-    const app = await buildApp({ env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: `${DEV},${PUBLISHED}` }) });
+    const app = await buildApp({
+      env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: `${DEV},${PUBLISHED}` }),
+    });
     for (const origin of [DEV, PUBLISHED]) {
       expect((await preflight(app, origin)).headers['access-control-allow-origin']).toBe(origin);
     }
@@ -188,7 +191,9 @@ describe('CORS origin allow-list', () => {
 
   it('rejects an origin that is not listed', async () => {
     const app = await buildApp({ env: makeTestEnv({ ALLOWED_EXTENSION_ORIGIN: DEV }) });
-    expect((await preflight(app, PUBLISHED)).headers['access-control-allow-origin']).toBeUndefined();
+    expect(
+      (await preflight(app, PUBLISHED)).headers['access-control-allow-origin'],
+    ).toBeUndefined();
     await app.close();
   });
 });
