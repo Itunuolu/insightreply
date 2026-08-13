@@ -12,6 +12,7 @@ import {
 import {
   FEED_CONTAINER,
   POST_WITH_MODERN_ICON_REPLY_COMPOSER,
+  POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
   POST_WITH_MULTIPLE_REPLY_THREADS,
   POST_WITH_REPLY_THREAD,
 } from '../../../test/fixtures.js';
@@ -77,6 +78,36 @@ describe('reply discovery and extraction', () => {
       },
     });
   });
+
+  it('owns a classless nested composer by the incoming reply, not the parent comment', () => {
+    const root = FEED_CONTAINER(POST_WITH_MODERN_NESTED_REPLY_COMPOSER);
+    const comments = findCommentContainers(root);
+    expect(comments).toHaveLength(2);
+
+    for (const comment of comments) injectReplyButton(comment);
+
+    const parent = root.querySelector('.modern-parent-comment') as HTMLElement;
+    const incoming = root.querySelector('.modern-incoming-reply') as HTMLElement;
+    expect(
+      Array.from(parent.querySelectorAll('.insightreply-reply-button')).filter(
+        (button) => button.closest('[data-insightreply-comment-scope]') === parent,
+      ),
+    ).toHaveLength(0);
+    expect(
+      Array.from(incoming.querySelectorAll('.insightreply-reply-button')).filter(
+        (button) => button.closest('[data-insightreply-comment-scope]') === incoming,
+      ),
+    ).toHaveLength(1);
+    expect(extractReplySelection(incoming)).toMatchObject({
+      replyContext: {
+        authorName: 'Oyindamola Oye-Daniel',
+        text: 'Amazing, thanks for this beautiful contribution.',
+        parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
+        parentCommentText:
+          'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
+      },
+    });
+  });
 });
 
 describe('AI Reply button', () => {
@@ -135,6 +166,35 @@ describe('AI Reply button', () => {
           replyContext: expect.objectContaining({ targetId: 'urn:li:comment:incoming_1' }),
         }),
       }),
+    );
+  });
+
+  it('shows a recovery message when Chrome stores the reply but cannot open the panel', async () => {
+    const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
+    const incoming = root.querySelector('[data-urn="urn:li:comment:incoming_1"]') as HTMLElement;
+    injectReplyButton(incoming);
+    const sendMessage = chrome.runtime.sendMessage as unknown as ReturnType<typeof vi.fn>;
+    sendMessage.mockResolvedValue({ ok: true, opened: false });
+
+    (incoming.querySelector('.insightreply-reply-button') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector('.insightreply-toast')?.textContent).toContain(
+      'Open InsightReply from the toolbar icon',
+    );
+  });
+
+  it('shows an error instead of silently returning when reply context cannot be extracted', async () => {
+    const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
+    const incoming = root.querySelector('[data-urn="urn:li:comment:incoming_1"]') as HTMLElement;
+    injectReplyButton(incoming);
+    root.querySelector('.feed-shared-inline-show-more-text')?.remove();
+
+    (incoming.querySelector('.insightreply-reply-button') as HTMLButtonElement).click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(document.querySelector('.insightreply-toast')?.textContent).toContain(
+      'could not read this LinkedIn reply',
     );
   });
 });

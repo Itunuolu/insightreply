@@ -273,6 +273,42 @@ export const POST_WITH_MODERN_ICON_REPLY_COMPOSER = `
 </div>
 `;
 
+/**
+ * A classless nested thread matching the current LinkedIn shape: the user's
+ * parent comment contains an incoming reply, and the open composer belongs to
+ * that incoming reply. Both actions use icon-only buttons.
+ */
+export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
+<div role="listitem" data-view-name="feed-full-update">
+  <a href="/in/founder"><span dir="auto">Product Founder</span></a>
+  <div data-testid="expandable-text-box">Measuring enabled outcomes changes how teams define delivery.</div>
+  <div data-view-name="feed-social-actions"><button aria-label="Comment">Comment</button></div>
+  <section class="modern-comments-region">
+    <div class="modern-parent-comment">
+      <a href="/in/itunuoluwa"><span dir="auto">Itunuoluwa Akinkugbe</span></a>
+      <div class="modern-parent-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
+      <div class="modern-parent-actions">
+        <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
+        <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
+      </div>
+      <div class="modern-incoming-reply">
+        <a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>
+        <div class="modern-incoming-copy" dir="ltr">Amazing, thanks for this beautiful contribution.</div>
+        <div class="modern-incoming-actions">
+          <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg></button>
+          <button aria-label="Reply to Oyindamola Oye-Daniel's comment"><svg data-test-icon="comment-small"></svg></button>
+        </div>
+        <div class="modern-reply-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
+          <a href="/in/current-user"><span dir="auto">Current user</span></a>
+          <div contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
+          <button class="modern-reply-submit" type="button">Reply</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+`;
+
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = innerHtml;

@@ -130,7 +130,7 @@ async function notifyBackgroundOfSelectionFailure(code: string): Promise<void> {
  * panel. Resolves to whether the side panel actually opened — storing the
  * selection can succeed even when Chrome refuses to open the panel.
  */
-async function dispatchSelection(post: SelectedPost): Promise<boolean> {
+export async function dispatchSelection(post: SelectedPost): Promise<boolean> {
   const response: unknown = await chrome.runtime.sendMessage({ type: 'IR_SELECT_POST', post });
   if (
     response &&

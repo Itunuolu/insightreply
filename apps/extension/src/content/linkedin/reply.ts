@@ -1,5 +1,6 @@
 import type { SelectedPost } from '@insightreply/shared';
 import { extractPostData, findPostContainers } from './adapter.js';
+import { dispatchSelection, showToast } from './button.js';
 import { setEditorText, appendEditorText, detectExistingText } from './insert.js';
 import {
   COMMENT_AUTHOR_SELECTORS,
@@ -23,6 +24,9 @@ const replyLocators = new Map<
 >();
 
 const COMMENT_CONTAINER_SELECTOR = COMMENT_CONTAINER_SELECTORS.join(',');
+const NATIVE_COMMENT_CONTAINER_SELECTOR = COMMENT_CONTAINER_SELECTORS.filter(
+  (selector) => selector !== `[${DYNAMIC_COMMENT_ATTRIBUTE}]`,
+).join(',');
 const REPLY_ACTION_SELECTOR = REPLY_ACTION_SELECTORS.join(',');
 const REPLY_EDITOR_SELECTOR = REPLY_EDITOR_SELECTORS.join(',');
 
@@ -96,7 +100,9 @@ export function findCommentContainers(root: ParentNode = document): HTMLElement[
 }
 
 function deriveCommentContainer(action: HTMLElement): HTMLElement | null {
-  const known = action.closest<HTMLElement>(COMMENT_CONTAINER_SELECTOR);
+  // A dynamic marker can belong to an outer parent comment. Treating it as a
+  // native boundary would collapse every nested icon action into that parent.
+  const known = action.closest<HTMLElement>(NATIVE_COMMENT_CONTAINER_SELECTOR);
   if (known) return known;
   const post = findPostContainers().find((container) => container.contains(action));
   if (!post) return null;
@@ -327,14 +333,33 @@ export function injectReplyButton(container: HTMLElement): void {
   button.addEventListener('click', (event) => {
     event.preventDefault();
     event.stopPropagation();
-    const post = extractReplySelection(container);
-    if (!post) return;
-    button.setAttribute('disabled', 'true');
-    void chrome.runtime
-      .sendMessage({ type: 'IR_SELECT_POST', post })
-      .catch(() => undefined)
-      .finally(() => button.removeAttribute('disabled'));
+    void handleReplyButtonClick(container, button);
   });
+}
+
+async function handleReplyButtonClick(
+  container: HTMLElement,
+  button: HTMLButtonElement,
+): Promise<void> {
+  const post = extractReplySelection(container);
+  if (!post) {
+    showToast(
+      'InsightReply could not read this LinkedIn reply. Close and reopen the reply box, then try again.',
+    );
+    return;
+  }
+
+  button.setAttribute('disabled', 'true');
+  try {
+    const opened = await dispatchSelection(post);
+    if (!opened) {
+      showToast('Reply selected. Open InsightReply from the toolbar icon to continue.');
+    }
+  } catch {
+    showToast('Could not open InsightReply. Open it from the toolbar icon and try again.');
+  } finally {
+    button.removeAttribute('disabled');
+  }
 }
 
 function isEditable(element: HTMLElement): boolean {

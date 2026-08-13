@@ -194,7 +194,8 @@ const fixture = `<!doctype html>
       .feed-shared-social-actions { border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 8px 0; }
       .feed-shared-social-actions button, .modern-actions button { border: 0; background: none; color: #666; font-weight: 600; cursor: pointer; padding: 6px 8px; }
       .modern-comments { margin-top: 16px; }
-      .modern-comment { position: relative; margin: 12px 0 0 34px; }
+      .modern-parent-comment { position: relative; margin: 12px 0 0 34px; }
+      .modern-incoming-reply { position: relative; margin: 16px 0 0 34px; }
       .comment-bubble { background: #f2f2f2; border-radius: 0 10px 10px 10px; padding: 10px 12px; }
       .modern-author { font-weight: 700; font-size: 13px; }
       .modern-subtitle { color: #666; font-size: 12px; margin-top: 2px; }
@@ -214,19 +215,30 @@ const fixture = `<!doctype html>
         <div class="feed-shared-inline-show-more-text"><span class="update-components-text">Good product discovery changes what a team decides not to build.</span></div>
         <div class="feed-shared-social-actions"><button aria-label="Like">Like</button><button aria-label="Comment">Comment</button><button aria-label="Repost">Repost</button></div>
         <div class="modern-comments">
-          <div class="modern-comment" data-comment-id="modern-user-comment">
+          <div class="modern-parent-comment" data-comment-id="modern-user-comment">
             <div class="comment-bubble">
               <a href="/in/itunuoluwa"><span class="modern-author" dir="auto">Itunuoluwa Akinkugbe</span></a>
               <div class="modern-subtitle">Senior Business Analyst | Digital Transformation</div>
-              <div class="modern-copy" dir="ltr">One subtle point worth adding: API awareness also improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.</div>
+              <div class="modern-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
             </div>
             <div class="modern-actions">
               <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
               <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
             </div>
-            <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
-              <div class="modern-editor" contenteditable="true" role="textbox"><p>Itunuoluwa Akinkugbe</p></div>
-              <button class="modern-submit" type="button">Reply</button>
+            <div class="modern-incoming-reply" data-comment-id="modern-incoming-reply">
+              <div class="comment-bubble">
+                <a href="/in/oyindamola"><span class="modern-author" dir="auto">Oyindamola Oye-Daniel</span></a>
+                <div class="modern-subtitle">Senior Product Manager</div>
+                <div class="modern-copy" dir="ltr">Amazing, thanks for this beautiful contribution.</div>
+              </div>
+              <div class="modern-actions">
+                <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg></button>
+                <button aria-label="Reply to Oyindamola Oye-Daniel's comment"><svg data-test-icon="comment-small"></svg></button>
+              </div>
+              <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
+                <div class="modern-editor" contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
+                <button class="modern-submit" type="button">Reply</button>
+              </div>
             </div>
           </div>
         </div>
@@ -241,6 +253,7 @@ await linkedin.screenshot({
   path: join(output, '09-linkedin-reply-controls-1200x900.png'),
   fullPage: true,
 });
+await linkedin.locator('button.insightreply-reply-button').click();
 audits.linkedin = await linkedin.evaluate(() => {
   const suspiciousCodePoints = ['\u00e2', '\u00c2', '\u00f0', '\ufffd'];
   const buttons = Array.from(
@@ -267,11 +280,23 @@ audits.linkedin = await linkedin.evaluate(() => {
       (element) =>
         element.closest('[data-insightreply-comment-scope]')?.getAttribute('data-comment-id') ?? null,
     ),
+    selectedReply: globalThis.__irBridge.messages.find(
+      (message) => message.post?.replyContext,
+    )?.post?.replyContext ?? null,
     corruptText: suspiciousCodePoints.some((value) =>
       document.body.innerText.includes(value),
     ),
   };
 });
+
+if (
+  audits.linkedin.buttonCount !== 1 ||
+  audits.linkedin.owners[0] !== 'modern-incoming-reply' ||
+  audits.linkedin.selectedReply?.authorName !== 'Oyindamola Oye-Daniel' ||
+  audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe'
+) {
+  throw new Error(`LinkedIn reply QA failed: ${JSON.stringify(audits.linkedin)}`);
+}
 
 const report = { extensionId, output, audits };
 writeFileSync(join(output, 'report.json'), `${JSON.stringify(report, null, 2)}\n`);
