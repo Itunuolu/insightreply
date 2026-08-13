@@ -3,7 +3,14 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FEED_POST_2026, FEED_POST_CLASSIC, FE_POST_TESTDATA, POST_WITH_OPEN_EDITOR, TRUNCATED_POST } from '../../src/test/fixtures.js';
+import {
+  FEED_POST_2026,
+  FEED_POST_CLASSIC,
+  FE_POST_TESTDATA,
+  POST_WITH_OPEN_EDITOR,
+  POST_WITH_REPLY_THREAD,
+  TRUNCATED_POST,
+} from '../../src/test/fixtures.js';
 
 const EXTENSION_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist-extension');
 
@@ -77,7 +84,7 @@ test.describe('InsightReply extension smoke test', () => {
     await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(panel.getByText('InsightReply', { exact: true })).toBeVisible();
     await expect(panel.getByText('by Hadesh.ai')).toBeVisible();
-    await expect(panel.getByText('No post selected')).toBeVisible();
+    await expect(panel.getByText('No conversation selected')).toBeVisible();
 
     // The manifest is valid: service worker registered the panel behavior.
     const sw = context.serviceWorkers()[0];
@@ -99,14 +106,23 @@ test.describe('InsightReply extension smoke test', () => {
       FEED_POST_2026,
       TRUNCATED_POST,
       POST_WITH_OPEN_EDITOR,
+      POST_WITH_REPLY_THREAD,
     ].join('\n');
     // Navigate (not setContent) so the init scripts run in this document.
     await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(`<main>${fixture}</main>`)}`);
 
     // 1. Button injection, exactly one per eligible post (debounced scan).
     await expect
-      .poll(async () => page.locator('button.insightreply-button').count(), { timeout: 5_000 })
-      .toBe(5);
+      .poll(
+        async () =>
+          page.locator('button.insightreply-button:not(.insightreply-reply-button)').count(),
+        { timeout: 5_000 },
+      )
+      .toBe(6);
+
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), { timeout: 5_000 })
+      .toBe(1);
 
     // 2. No post content is transmitted before a click.
     const messagesBefore = await page.evaluate(() => (window as unknown as { __irBridge: { messages: unknown[] } }).__irBridge.messages.length);
@@ -152,6 +168,58 @@ test.describe('InsightReply extension smoke test', () => {
     expect(insertResult).toMatchObject({ ok: true, inserted: true, hadExistingText: false });
     const editorText = await page.locator('[data-urn="urn:li:activity:editor_1"] .ql-editor').textContent();
     expect(editorText).toBe('Browser-level insertion test.');
+
+    // 6. Selecting and inserting a reply stays scoped to the targeted comment thread.
+    await page
+      .locator('[data-urn="urn:li:comment:incoming_1"] button.insightreply-reply-button')
+      .click();
+    const replySelection = await page.evaluate(
+      () =>
+        (window as unknown as {
+          __irBridge: {
+            messages: {
+              type: string;
+              post?: { replyContext?: { targetId?: string; authorName?: string; text?: string } };
+            }[];
+          };
+        }).__irBridge.messages.find(
+          (message) => message.post?.replyContext?.targetId === 'urn:li:comment:incoming_1',
+        ),
+    );
+    expect(replySelection).toMatchObject({
+      type: 'IR_SELECT_POST',
+      post: {
+        replyContext: {
+          targetId: 'urn:li:comment:incoming_1',
+          authorName: 'Grace Hopper',
+          text: 'How do you separate a weak request from an unmet need?',
+        },
+      },
+    });
+
+    const replyInsertResult = await page.evaluate(async () => {
+      const bridge = (window as unknown as {
+        __irBridge: { listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown };
+      }).__irBridge;
+      return new Promise((resolve) => {
+        bridge.listener?.(
+          {
+            type: 'IR_INSERT_COMMENT',
+            postId: 'urn:li:activity:reply_post_1',
+            replyTargetId: 'urn:li:comment:incoming_1',
+            text: 'Browser-level reply insertion test.',
+            mode: 'auto',
+          },
+          {},
+          (response) => resolve(response),
+        );
+      });
+    });
+    expect(replyInsertResult).toMatchObject({ ok: true, inserted: true, hadExistingText: false });
+    const replyEditorText = await page
+      .locator('[data-urn="urn:li:comment:incoming_1"] .ql-editor')
+      .textContent();
+    expect(replyEditorText).toBe('Browser-level reply insertion test.');
 
     expect(pageErrors).toEqual([]);
     await page.close();

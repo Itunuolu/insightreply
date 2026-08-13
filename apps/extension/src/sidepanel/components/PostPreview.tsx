@@ -14,10 +14,10 @@ export function PostPreview() {
   if (!post) {
     return (
       <div className="rounded-2xl border border-dashed border-navy-600 bg-navy-800/60 p-4 text-center">
-        <p className="text-sm font-medium text-slate-200">No post selected</p>
+        <p className="text-sm font-medium text-slate-200">No conversation selected</p>
         <p className="mt-1 text-xs text-slate-400">
           Open LinkedIn, click <span className="font-semibold text-gold-light">✨ AI Comment</span>{' '}
-          on a post to begin.
+          on a post, or <span className="font-semibold text-gold-light">✨ AI Reply</span> beside a reply.
         </p>
       </div>
     );
@@ -29,13 +29,15 @@ export function PostPreview() {
   const fullText = sanitizeText(post.postText, MAX_POST_LENGTH);
   const previewText = expanded ? fullText : truncate(fullText, PREVIEW_LIMIT);
   const truncated = fullText.length > PREVIEW_LIMIT;
+  const reply = post.replyContext;
 
   return (
     <div className="rounded-2xl border border-navy-600/70 bg-navy-800/60 p-4">
       <div className="flex items-start justify-between gap-2">
         <div className="min-w-0">
-          <p className="text-xs text-slate-400">Selected post</p>
+          <p className="text-xs text-slate-400">{reply ? 'Reply conversation' : 'Selected post'}</p>
           <p className="truncate text-sm font-semibold text-white">
+            {reply ? 'Post by ' : ''}
             {post.authorName ? sanitizeText(post.authorName, 200) : 'Unknown author'}
           </p>
         </div>
@@ -50,6 +52,26 @@ export function PostPreview() {
       <p className="mt-2 max-h-48 overflow-y-auto whitespace-pre-line text-xs leading-relaxed text-slate-300">
         {previewText}
       </p>
+      {reply && (
+        <div className="mt-3 rounded-xl border border-gold/25 bg-gold/5 p-3">
+          {reply.parentCommentText && (
+            <div className="mb-2 border-l-2 border-slate-600 pl-2">
+              <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+                Your comment
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-400">
+                {sanitizeText(reply.parentCommentText, 700)}
+              </p>
+            </div>
+          )}
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-gold-light">
+            Reply from {reply.authorName ? sanitizeText(reply.authorName, 200) : 'LinkedIn member'}
+          </p>
+          <p className="mt-1 text-xs leading-relaxed text-slate-200">
+            {sanitizeText(reply.text, 1_000)}
+          </p>
+        </div>
+      )}
       {truncated && (
         <button
           type="button"

@@ -5,6 +5,7 @@ import type { RuntimeMessage } from './types.js';
 const insertMessageSchema = z.object({
   type: z.literal('IR_INSERT_COMMENT'),
   postId: z.string().min(1).max(256),
+  replyTargetId: z.string().min(1).max(256).optional(),
   text: z.string().min(1).max(2000),
   mode: z.enum(['replace', 'append', 'auto']),
 });

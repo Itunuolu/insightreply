@@ -108,3 +108,55 @@ export const MOUNTED_ATTRIBUTE = 'data-insightreply-mounted';
 
 /** Per-page registry attribute that maps a post container to its post id. */
 export const POST_ID_ATTRIBUTE = 'data-insightreply-id';
+
+/** Candidate containers for one LinkedIn comment or reply. */
+export const COMMENT_CONTAINER_SELECTORS: string[] = [
+  '.comments-comment-entity',
+  '[data-testid="comment-entity"]',
+  '[data-view-name="comment"]',
+  'article[data-urn^="urn:li:comment"]',
+  'div[data-id^="urn:li:comment"]',
+];
+
+/** Text nodes that belong to a comment entity rather than the post body. */
+export const COMMENT_TEXT_SELECTORS: string[] = [
+  '.comments-comment-item__main-content',
+  '.comments-comment-item-content-body',
+  '[data-testid="comment-text"]',
+  '[data-view-name="comment-text"]',
+  '.update-components-text',
+];
+
+/** Comment-author display names. */
+export const COMMENT_AUTHOR_SELECTORS: string[] = [
+  '.comments-post-meta__name-text',
+  '.comments-comment-meta__description-title',
+  '[data-testid="comment-author-name"]',
+  '[data-view-name="comment-author"]',
+  'a[href*="/in/"] span[dir="auto"]',
+];
+
+/** LinkedIn controls that open a reply editor for a specific comment. */
+export const REPLY_ACTION_SELECTORS: string[] = [
+  'button[aria-label="Reply" i]',
+  'button[aria-label^="Reply to" i]',
+  '[data-control-name="reply_comment"]',
+  '[data-testid="reply-button"]',
+  '[data-view-name="comment-reply-action"]',
+];
+
+/** Reply editors. These are searched inside the selected comment/thread scope. */
+export const REPLY_EDITOR_SELECTORS: string[] = [
+  '[data-testid="ui-core-tiptap-text-editor-wrapper"] div[contenteditable="true"][role="textbox"]',
+  'div.tiptap[contenteditable="true"][role="textbox"][aria-label*="reply" i]',
+  'div[contenteditable="true"][role="textbox"][aria-label*="reply" i]',
+  '.comments-comment-box__form .ql-editor',
+  'form [contenteditable="true"][data-placeholder*="reply" i]',
+];
+
+export const REPLY_MOUNTED_ATTRIBUTE = 'data-insightreply-reply-mounted';
+export const REPLY_TARGET_ATTRIBUTE = 'data-insightreply-reply-target';
+
+export function matchesReplyActionText(raw: string | null | undefined): boolean {
+  return /^reply$/i.test((raw ?? '').replace(/[^\p{L}]+/gu, ''));
+}

@@ -23,6 +23,8 @@ export const MAX_WRITING_PROFILE_LENGTH = 1_500;
 export const MAX_LANGUAGE_LENGTH = 30;
 export const MAX_AUTHOR_NAME_LENGTH = 200;
 export const MAX_POST_URL_LENGTH = 2048;
+export const MAX_COMMENT_LENGTH = 4_000;
+export const MAX_REPLY_TARGET_ID_LENGTH = 256;
 
 const trimmedString = (max: number, label: string) =>
   z
@@ -56,8 +58,23 @@ export const preferencesSchema = z.object({
     .default(DEFAULT_SUGGESTION_COUNT),
 });
 
+export const replyGenerationContextSchema = z.object({
+  authorName: trimmedString(MAX_AUTHOR_NAME_LENGTH, 'Reply author name').optional(),
+  text: z
+    .string()
+    .trim()
+    .min(1, 'Reply text is required')
+    .max(MAX_COMMENT_LENGTH, `Reply exceeds the maximum length of ${MAX_COMMENT_LENGTH} characters`),
+  parentCommentAuthorName: trimmedString(
+    MAX_AUTHOR_NAME_LENGTH,
+    'Parent comment author name',
+  ).optional(),
+  parentCommentText: trimmedString(MAX_COMMENT_LENGTH, 'Parent comment').optional(),
+});
+
 export const generateCommentsRequestSchema = z.object({
   post: postSchema,
+  reply: replyGenerationContextSchema.optional(),
   preferences: preferencesSchema,
 });
 
@@ -84,6 +101,10 @@ export const apiErrorSchema = z.object({
 });
 
 
+export const selectedReplyContextSchema = replyGenerationContextSchema.extend({
+  targetId: z.string().min(1).max(MAX_REPLY_TARGET_ID_LENGTH),
+});
+
 export const selectedPostSchema = z.object({
   postId: z.string().min(1).max(256),
   authorName: z.string().max(MAX_AUTHOR_NAME_LENGTH).optional(),
@@ -91,6 +112,7 @@ export const selectedPostSchema = z.object({
   postUrl: z.string().max(MAX_POST_URL_LENGTH).optional(),
   truncated: z.boolean().optional().default(false),
   selectedAt: z.string().min(1),
+  replyContext: selectedReplyContextSchema.optional(),
 });
 
 
@@ -112,4 +134,3 @@ export const settingsSchema = z.object({
     .max(200)
     .default('http://localhost:8787'),
 });
-

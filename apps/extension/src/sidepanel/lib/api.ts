@@ -40,6 +40,14 @@ function buildRequest(params: GenerateParams) {
       text: post.postText,
       url: post.postUrl,
     },
+    reply: post.replyContext
+      ? {
+          authorName: post.replyContext.authorName,
+          text: post.replyContext.text,
+          parentCommentAuthorName: post.replyContext.parentCommentAuthorName,
+          parentCommentText: post.replyContext.parentCommentText,
+        }
+      : undefined,
     preferences: {
       tone: compose.tone,
       length: compose.length,

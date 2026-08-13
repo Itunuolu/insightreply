@@ -5,6 +5,8 @@ import type {
   TONES,
   generateCommentsRequestSchema,
   generateCommentsResponseSchema,
+  replyGenerationContextSchema,
+  selectedReplyContextSchema,
   selectedPostSchema,
   settingsSchema,
 } from './schemas.js';
@@ -15,6 +17,8 @@ export type EmojiPreference = (typeof EMOJI_PREFERENCES)[number];
 
 export type GenerateCommentsRequest = z.infer<typeof generateCommentsRequestSchema>;
 export type GenerateCommentsResponse = z.infer<typeof generateCommentsResponseSchema>;
+export type ReplyGenerationContext = z.infer<typeof replyGenerationContextSchema>;
+export type SelectedReplyContext = z.infer<typeof selectedReplyContextSchema>;
 export type SelectedPost = z.infer<typeof selectedPostSchema>;
 export type Settings = z.infer<typeof settingsSchema>;
 
@@ -54,6 +58,7 @@ export type RuntimeMessage =
   | {
       type: 'IR_INSERT_COMMENT';
       postId: string;
+      replyTargetId?: string;
       text: string;
       mode: 'replace' | 'append' | 'auto';
     }

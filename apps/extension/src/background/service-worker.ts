@@ -56,7 +56,7 @@ async function handleInsertComment(
     return {
       ok: false,
       code: 'NO_SELECTED_TAB',
-      message: 'No post selected. Select a post on LinkedIn first.',
+      message: 'No conversation selected. Select a post or reply on LinkedIn first.',
     };
   }
 

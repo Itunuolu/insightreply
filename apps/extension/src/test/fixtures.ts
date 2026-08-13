@@ -191,6 +191,57 @@ export const FEED_POST_2026_TRUNCATED = `
 </div>
 `;
 
+/** A post with the user's comment, an incoming nested reply, and a reply editor. */
+export const POST_WITH_REPLY_THREAD = `
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:reply_post_1">
+  <div class="update-components-actor">
+    <span class="update-components-actor__name">Ada Lovelace</span>
+  </div>
+  <div class="feed-shared-inline-show-more-text">
+    <span class="update-components-text">Good product discovery changes what a team decides not to build.</span>
+  </div>
+  <div class="feed-shared-social-actions"><button aria-label="Comment">Comment</button></div>
+  <div class="comments-thread" data-testid="comment-thread">
+    <article class="comments-comment-entity" data-urn="urn:li:comment:user_1">
+      <a href="/in/current-user"><span class="comments-post-meta__name-text">You</span></a>
+      <div class="comments-comment-item__main-content">The strongest signal is often the feature customers never ask for twice.</div>
+      <button aria-label="Reply">Reply</button>
+      <article class="comments-comment-entity" data-urn="urn:li:comment:incoming_1">
+        <a href="/in/grace"><span class="comments-post-meta__name-text">Grace Hopper</span></a>
+        <div class="comments-comment-item__main-content">How do you separate a weak request from an unmet need?</div>
+        <button aria-label="Reply to Grace Hopper">Reply</button>
+        <div class="comments-comment-box__form">
+          <div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply to Grace Hopper"></div>
+        </div>
+      </article>
+    </article>
+  </div>
+</div>
+`;
+
+/** Two reply targets ensure insertion never leaks into the wrong thread. */
+export const POST_WITH_MULTIPLE_REPLY_THREADS = `
+<div class="feed-shared-update-v2" data-urn="urn:li:activity:reply_post_2">
+  <div class="update-components-actor"><span class="update-components-actor__name">Alan Turing</span></div>
+  <div class="feed-shared-inline-show-more-text"><span class="update-components-text">Make systems understandable before making them clever.</span></div>
+  <div class="feed-shared-social-actions"><button aria-label="Comment">Comment</button></div>
+  <div class="comments-thread">
+    <article class="comments-comment-entity" data-urn="urn:li:comment:first">
+      <span class="comments-post-meta__name-text">First Person</span>
+      <div class="comments-comment-item__main-content">First incoming reply.</div>
+      <button aria-label="Reply">Reply</button>
+      <div class="comments-comment-box__form"><div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply to First Person"></div></div>
+    </article>
+    <article class="comments-comment-entity" data-urn="urn:li:comment:second">
+      <span class="comments-post-meta__name-text">Second Person</span>
+      <div class="comments-comment-item__main-content">Second incoming reply.</div>
+      <button aria-label="Reply">Reply</button>
+      <div class="comments-comment-box__form"><div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply to Second Person"></div></div>
+    </article>
+  </div>
+</div>
+`;
+
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = innerHtml;

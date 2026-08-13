@@ -176,6 +176,7 @@ function ensureStyles(): void {
   style.id = 'insightreply-style';
   style.textContent = `
     .insightreply-button:hover { opacity:.92; }
+    .insightreply-button:disabled { opacity:.6; cursor:wait; }
     .insightreply-button:focus-visible {
       outline:2px solid #e8c95e;
       outline-offset:2px;

@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { makeFakeClient, makeTestEnv, validRequest, validSuggestionsJson } from './helpers.js';
+import {
+  makeFakeClient,
+  makeTestEnv,
+  validReplyRequest,
+  validRequest,
+  validSuggestionsJson,
+} from './helpers.js';
 import { buildApp } from '../app.js';
 
 describe('HTTP API', () => {
@@ -89,6 +95,26 @@ describe('HTTP API', () => {
     expect(body.postSummary).toBeTruthy();
     expect(body.suggestions).toHaveLength(3);
     expect(body.suggestions[0]).toMatchObject({ id: expect.any(String), text: expect.any(String) });
+    await app.close();
+  });
+
+  it('generates contextual replies through the same backward-compatible endpoint', async () => {
+    let modelInput = '';
+    const client = makeFakeClient(async (params) => {
+      modelInput = String(params.input ?? '');
+      return { output_text: validSuggestionsJson(3) };
+    });
+    const app = await buildApp({ env: makeTestEnv(), client });
+    const response = await app.inject({
+      method: 'POST',
+      url: '/v1/comments/generate',
+      payload: validReplyRequest(),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json().suggestions).toHaveLength(3);
+    expect(modelInput).toContain('selected_linkedin_reply_context');
+    expect(modelInput).toContain('What changed in the product');
+    expect(modelInput).toContain('Task: Write a reply');
     await app.close();
   });
 

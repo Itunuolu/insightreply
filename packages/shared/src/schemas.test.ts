@@ -72,6 +72,29 @@ describe('generateCommentsRequestSchema', () => {
     });
     expect(result.preferences.suggestionCount).toBe(3);
   });
+
+  it('accepts reply context alongside the original post', () => {
+    const result = generateCommentsRequestSchema.safeParse({
+      post: { authorName: 'Ada', text: 'A post about product discovery.' },
+      reply: {
+        authorName: 'Grace',
+        text: 'How did you decide which interviews to prioritise?',
+        parentCommentAuthorName: 'You',
+        parentCommentText: 'Interview quality matters more than interview volume.',
+      },
+      preferences: { tone: 'insightful', length: 'short' },
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects an empty incoming reply', () => {
+    const result = generateCommentsRequestSchema.safeParse({
+      post: { text: 'A valid post.' },
+      reply: { text: '' },
+      preferences: { tone: 'casual', length: 'short' },
+    });
+    expect(result.success).toBe(false);
+  });
 });
 
 describe('selectedPostSchema', () => {
@@ -92,6 +115,21 @@ describe('selectedPostSchema', () => {
       selectedAt: new Date().toISOString(),
     });
     expect(result.success).toBe(false);
+  });
+
+  it('accepts a selected reply target without breaking selected posts', () => {
+    const result = selectedPostSchema.safeParse({
+      postId: 'urn:li:activity:1',
+      postText: 'Some text',
+      selectedAt: new Date().toISOString(),
+      replyContext: {
+        targetId: 'urn:li:comment:2',
+        authorName: 'Grace',
+        text: 'A reply directed at the user.',
+        parentCommentText: 'The user\'s earlier comment.',
+      },
+    });
+    expect(result.success).toBe(true);
   });
 });
 

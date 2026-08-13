@@ -35,7 +35,7 @@ export function SettingsView() {
       <button
         type="button"
         onClick={() => setView('generate')}
-        className="self-start text-xs font-medium text-slate-300 hover:text-white"
+        className="-ml-2 inline-flex min-h-8 items-center rounded-md px-2 text-xs font-medium text-slate-300 hover:bg-navy-800 hover:text-white"
       >
         ← Back to suggestions
       </button>
@@ -184,16 +184,17 @@ export function SettingsView() {
         <SectionLabel>Privacy</SectionLabel>
         <div className="rounded-2xl border border-navy-600/70 bg-navy-800/60 p-4 text-xs leading-relaxed text-slate-300">
           <p>
-            Post content is processed only when you press Generate. The extension never posts
-            comments automatically, does not sell data, and does not collect LinkedIn credentials.
-            Avoid sending confidential information in posts you analyse.
+            Selected conversation content is processed only when you press Generate. The extension
+            never posts comments or replies automatically, does not sell data, and does not collect
+            LinkedIn credentials. Avoid sending confidential information in conversations you
+            analyse.
           </p>
         </div>
       </section>
 
       <div className="flex flex-col gap-2">
         <Button variant="secondary" onClick={() => void clearSelectedPost()} disabled={!state.selectedPost}>
-          Clear selected post
+          Clear selected conversation
         </Button>
         <Button variant="danger" onClick={() => void resetSettings()} disabled={!dirty}>
           Clear settings

@@ -141,7 +141,10 @@ export class CommentGenerator {
       };
     }
 
-    const filtered = filterSuggestions(parsed.suggestions, request.post.text, {
+    const sourceText = request.reply
+      ? `${request.post.text}\n${request.reply.parentCommentText ?? ''}\n${request.reply.text}`
+      : request.post.text;
+    const filtered = filterSuggestions(parsed.suggestions, sourceText, {
       length: request.preferences.length,
       emojiPreference: request.preferences.emojiPreference,
       maxQuestionModeTone: request.preferences.tone === 'question_led' ? 'question_led' : 'none',

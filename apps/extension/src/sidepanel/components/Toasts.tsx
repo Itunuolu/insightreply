@@ -25,7 +25,7 @@ export function Toasts() {
             type="button"
             aria-label="Dismiss"
             onClick={() => dismissToast(toast.id)}
-            className="shrink-0 rounded p-0.5 opacity-70 hover:opacity-100"
+            className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded opacity-70 hover:bg-navy-700 hover:opacity-100"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true">
               <path d="M18 6 6 18M6 6l12 12" strokeLinecap="round" />

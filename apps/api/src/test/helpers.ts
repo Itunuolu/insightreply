@@ -36,6 +36,18 @@ export function validRequest(): GenerateCommentsRequest {
   };
 }
 
+export function validReplyRequest(): GenerateCommentsRequest {
+  return {
+    ...validRequest(),
+    reply: {
+      authorName: 'Grace Hopper',
+      text: 'What changed in the product after those interviews?',
+      parentCommentAuthorName: 'You',
+      parentCommentText: 'The strongest discovery work changes what teams choose not to build.',
+    },
+  };
+}
+
 export function validSuggestionsJson(count = 3): string {
   const texts = [
     'This is a genuinely distinct suggestion about product iteration that adds practical value.',

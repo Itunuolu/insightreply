@@ -14,7 +14,7 @@ This document explains every permission in `apps/extension/manifest.json`, what 
 Used for two scopes:
 
 - `chrome.storage.sync` — user settings (default tone, length, writing profile, backend URL). Synced across the user's own Chrome profile.
-- `chrome.storage.session` — the **currently selected post only** (short-lived, cleared when the browser restarts). This lets the content script, service worker, and side panel share exactly one selected post without any persistence.
+- `chrome.storage.session` — the **currently selected conversation only** (a post or a post plus selected reply context; short-lived and cleared when the browser restarts). This lets the content script, service worker, and side panel share one deliberate selection without long-term persistence.
 
 No full posts are ever written to `chrome.storage.local` or retained long-term.
 
@@ -34,7 +34,7 @@ Required by the Chrome Side Panel API to open the extension's own side panel fro
 
 | Pattern | Why |
 |---|---|
-| `https://*.linkedin.com/*` | The content script must run on LinkedIn feed and post pages to show the AI Comment button, read the post the user selects, and insert the chosen draft into that post's comment box. This is the only host permission the extension requests. |
+| `https://*.linkedin.com/*` | The content script must run on LinkedIn feed and post pages to show AI Comment and AI Reply controls, read the conversation the user selects, and insert the chosen draft into the correct comment or reply editor. This is the only host permission the extension requests. |
 
 **Why there is no host permission for the backend.** The side panel reaches the
 configured backend with an ordinary cross-origin `fetch`, and the backend

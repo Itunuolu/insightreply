@@ -281,7 +281,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const runGeneration = useCallback(async () => {
     const post = state.selectedPost ?? (await loadSelectedPost());
     if (!post) {
-      showToast('Select a post on LinkedIn first.', 'error');
+      showToast('Select a post or reply on LinkedIn first.', 'error');
       return;
     }
     if (post.truncated) {
@@ -306,7 +306,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!draft) return;
       const post = state.selectedPost ?? (await loadSelectedPost());
       if (!post) {
-        showToast('Select a post on LinkedIn first.', 'error');
+        showToast('Select a post or reply on LinkedIn first.', 'error');
         return;
       }
       showToast('Regenerating this suggestion…');
@@ -368,7 +368,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!draft || !draft.text.trim()) return;
       const post = state.selectedPost ?? (await loadSelectedPost());
       if (!post) {
-        showToast('Select a post on LinkedIn first.', 'error');
+        showToast('Select a post or reply on LinkedIn first.', 'error');
         return;
       }
 
@@ -376,6 +376,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const response: unknown = await chrome.runtime.sendMessage({
           type: 'IR_INSERT_COMMENT',
           postId: post.postId,
+          replyTargetId: post.replyContext?.targetId,
           text: draft.text,
           mode,
         });
@@ -392,7 +393,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         if (response.hadExistingText) {
           requestConfirm(
-            'The comment box already contains text. Replace it or append the suggestion?',
+            `The ${post.replyContext ? 'reply' : 'comment'} box already contains text. Replace it or append the suggestion?`,
             async (mode) => {
               const retry = await sendInsert(mode);
               if (!retry.ok) {
@@ -406,7 +407,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         showToast('Inserted — review it on LinkedIn before posting.');
       } catch {
-        showToast('Could not insert the comment. Open LinkedIn and try again.', 'error');
+        showToast(
+          `Could not insert the ${post.replyContext ? 'reply' : 'comment'}. Open LinkedIn and try again.`,
+          'error',
+        );
       }
     },
     [state.drafts, state.selectedPost, showToast, requestConfirm],
