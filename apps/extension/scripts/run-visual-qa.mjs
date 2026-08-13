@@ -233,12 +233,12 @@ const fixture = `<!doctype html>
               </div>
               <div class="modern-actions">
                 <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg></button>
-                <button aria-label="Reply to Oyindamola Oye-Daniel's comment"><svg data-test-icon="comment-small"></svg></button>
+                <button><svg data-test-icon="reply-small"></svg></button>
               </div>
-              <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
-                <div class="modern-editor" contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
-                <button class="modern-submit" type="button">Reply</button>
-              </div>
+            </div>
+            <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
+              <div class="modern-editor" contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
+              <button class="modern-submit" type="button">Reply</button>
             </div>
           </div>
         </div>
@@ -274,12 +274,22 @@ audits.linkedin = await linkedin.evaluate(() => {
   return {
     buttonCount: buttons.length,
     buttons,
-    owners: Array.from(
-      document.querySelectorAll('button.insightreply-reply-button'),
-    ).map(
-      (element) =>
-        element.closest('[data-insightreply-comment-scope]')?.getAttribute('data-comment-id') ?? null,
-    ),
+    placement: {
+      insideComposer: Boolean(
+        document.querySelector('.modern-composer .insightreply-reply-button'),
+      ),
+      immediatelyBeforeSubmit: Boolean(
+        document.querySelector(
+          '.modern-composer .insightreply-reply-wrap + .modern-submit',
+        ),
+      ),
+      attachedToParentAction: Boolean(
+        document.querySelector('.modern-parent-comment > .modern-actions + .insightreply-reply-wrap'),
+      ),
+      attachedToIncomingAction: Boolean(
+        document.querySelector('.modern-incoming-reply .modern-actions + .insightreply-reply-wrap'),
+      ),
+    },
     selectedReply: globalThis.__irBridge.messages.find(
       (message) => message.post?.replyContext,
     )?.post?.replyContext ?? null,
@@ -291,7 +301,10 @@ audits.linkedin = await linkedin.evaluate(() => {
 
 if (
   audits.linkedin.buttonCount !== 1 ||
-  audits.linkedin.owners[0] !== 'modern-incoming-reply' ||
+  !audits.linkedin.placement.insideComposer ||
+  !audits.linkedin.placement.immediatelyBeforeSubmit ||
+  audits.linkedin.placement.attachedToParentAction ||
+  audits.linkedin.placement.attachedToIncomingAction ||
   audits.linkedin.selectedReply?.authorName !== 'Oyindamola Oye-Daniel' ||
   audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe'
 ) {

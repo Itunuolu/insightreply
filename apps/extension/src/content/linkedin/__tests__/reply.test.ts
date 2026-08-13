@@ -65,9 +65,12 @@ describe('reply discovery and extraction', () => {
     injectReplyButton(comment);
     const button = comment.querySelector('.insightreply-reply-button');
     expect(button).not.toBeNull();
-    expect(button?.parentElement?.previousElementSibling?.getAttribute('aria-label')).toContain(
-      'Reply to',
-    );
+    expect(
+      comment.querySelector(
+        '.hashed-reply-composer .insightreply-reply-wrap + .hashed-reply-submit',
+      ),
+    ).not.toBeNull();
+    expect(comment.querySelector('.hashed-comment-actions + .insightreply-reply-wrap')).toBeNull();
     expect(comment.querySelector('.hashed-reply-submit + .insightreply-reply-wrap')).toBeNull();
 
     expect(extractReplySelection(comment)).toMatchObject({
@@ -86,18 +89,14 @@ describe('reply discovery and extraction', () => {
 
     for (const comment of comments) injectReplyButton(comment);
 
-    const parent = root.querySelector('.modern-parent-comment') as HTMLElement;
     const incoming = root.querySelector('.modern-incoming-reply') as HTMLElement;
+    const composer = root.querySelector('.modern-reply-composer') as HTMLElement;
+    expect(root.querySelector('.modern-parent-actions + .insightreply-reply-wrap')).toBeNull();
+    expect(root.querySelector('.modern-incoming-actions + .insightreply-reply-wrap')).toBeNull();
+    expect(composer.querySelectorAll('.insightreply-reply-button')).toHaveLength(1);
     expect(
-      Array.from(parent.querySelectorAll('.insightreply-reply-button')).filter(
-        (button) => button.closest('[data-insightreply-comment-scope]') === parent,
-      ),
-    ).toHaveLength(0);
-    expect(
-      Array.from(incoming.querySelectorAll('.insightreply-reply-button')).filter(
-        (button) => button.closest('[data-insightreply-comment-scope]') === incoming,
-      ),
-    ).toHaveLength(1);
+      composer.querySelector('.insightreply-reply-wrap + .modern-reply-submit'),
+    ).not.toBeNull();
     expect(extractReplySelection(incoming)).toMatchObject({
       replyContext: {
         authorName: 'Oyindamola Oye-Daniel',
@@ -127,6 +126,7 @@ describe('AI Reply button', () => {
       '<div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply"></div>';
     parent.appendChild(form);
 
+    findCommentContainers(root);
     injectReplyButton(parent);
     expect(
       Array.from(parent.querySelectorAll('.insightreply-reply-wrap')).filter(

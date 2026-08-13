@@ -171,7 +171,7 @@ test.describe('InsightReply extension smoke test', () => {
     // 4. The icon-only LinkedIn layout selects the correct comment, not the
     // blue Reply submit button inside the open composer.
     const modernReplyButton = page.locator(
-      '.hashed-comment-layout button.insightreply-reply-button',
+      '.hashed-reply-composer button.insightreply-reply-button',
     );
     await expect(modernReplyButton).toHaveCount(1);
     await modernReplyButton.click();
@@ -190,14 +190,21 @@ test.describe('InsightReply extension smoke test', () => {
     expect(modernSelection?.post?.replyContext?.text).toContain('API awareness improves');
 
     // 5. In the current classless nested thread, the button belongs to the
-    // incoming reply rather than the user's outer parent comment.
+    // incoming reply rather than the user's outer parent comment, and is
+    // rendered inside the open composer beside LinkedIn's submit button.
     await expect(
       page.locator('.modern-parent-comment > .modern-parent-actions + .insightreply-reply-wrap'),
     ).toHaveCount(0);
+    await expect(
+      page.locator('.modern-incoming-actions + .insightreply-reply-wrap'),
+    ).toHaveCount(0);
     const nestedReplyButton = page.locator(
-      '.modern-incoming-reply button.insightreply-reply-button',
+      '.modern-reply-composer button.insightreply-reply-button',
     );
     await expect(nestedReplyButton).toHaveCount(1);
+    await expect(
+      page.locator('.modern-reply-composer .insightreply-reply-wrap + .modern-reply-submit'),
+    ).toHaveCount(1);
     await nestedReplyButton.click();
     const nestedSelection = await page.evaluate(
       () =>
@@ -205,7 +212,9 @@ test.describe('InsightReply extension smoke test', () => {
           __irBridge: {
             messages: {
               post?: {
+                postId?: string;
                 replyContext?: {
+                  targetId?: string;
                   authorName?: string;
                   text?: string;
                   parentCommentAuthorName?: string;
@@ -222,6 +231,37 @@ test.describe('InsightReply extension smoke test', () => {
       text: 'Amazing, thanks for this beautiful contribution.',
       parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
     });
+
+    const siblingReplyInsert = await page.evaluate(
+      async ({ postId, targetId }) => {
+        const bridge = (window as unknown as {
+          __irBridge: {
+            listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown;
+          };
+        }).__irBridge;
+        return new Promise((resolve) => {
+          bridge.listener?.(
+            {
+              type: 'IR_INSERT_COMMENT',
+              postId,
+              replyTargetId: targetId,
+              text: 'Thank you, Oyindamola. I appreciate the thoughtful response.',
+              mode: 'append',
+            },
+            {},
+            (response) => resolve(response),
+          );
+        });
+      },
+      {
+        postId: nestedSelection?.post?.postId,
+        targetId: nestedSelection?.post?.replyContext?.targetId,
+      },
+    );
+    expect(siblingReplyInsert).toMatchObject({ ok: true, inserted: true });
+    await expect(page.locator('.modern-reply-composer [contenteditable="true"]')).toContainText(
+      'Thank you, Oyindamola. I appreciate the thoughtful response.',
+    );
 
     // 6. Truncated post shows the guidance toast and is not selected.
     await page.evaluate(() => {

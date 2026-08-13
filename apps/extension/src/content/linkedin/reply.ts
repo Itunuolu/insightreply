@@ -18,6 +18,8 @@ import {
 const REPLY_BUTTON_TEXT = '✨ AI Reply';
 
 const replyRegistry = new Map<string, HTMLElement>();
+const editorTargetRegistry = new WeakMap<HTMLElement, HTMLElement>();
+const replyWrapRegistry = new WeakMap<HTMLElement, HTMLElement>();
 const replyLocators = new Map<
   string,
   { postId: string; authorName?: string; text: string }
@@ -53,6 +55,73 @@ function isVisible(element: Element): boolean {
   if (!(element instanceof HTMLElement)) return true;
   const style = window.getComputedStyle(element);
   return style.display !== 'none' && style.visibility !== 'hidden';
+}
+
+function normalizeInlineText(value: string | null | undefined): string {
+  return (value ?? '').replace(/\s+/g, ' ').trim().toLocaleLowerCase();
+}
+
+function findComposerScope(editor: HTMLElement): HTMLElement {
+  return (
+    editor.closest<HTMLElement>(
+      '[data-testid="ui-core-tiptap-text-editor-wrapper"], .comments-comment-box__form, form',
+    ) ??
+    editor.parentElement ??
+    editor
+  );
+}
+
+function precedes(element: Element, reference: Element): boolean {
+  return Boolean(element.compareDocumentPosition(reference) & Node.DOCUMENT_POSITION_FOLLOWING);
+}
+
+function branchUnder(ancestor: HTMLElement, descendant: HTMLElement): HTMLElement | null {
+  let branch = descendant;
+  while (branch.parentElement && branch.parentElement !== ancestor) branch = branch.parentElement;
+  return branch.parentElement === ancestor ? branch : null;
+}
+
+/**
+ * LinkedIn can render an open reply composer as a sibling of the incoming
+ * reply. Resolve the target from the @mention in that composer and the nearest
+ * preceding profile link instead of assuming the editor is inside its comment.
+ */
+function deriveCommentContainerFromEditor(editor: HTMLElement): HTMLElement | null {
+  const post = findPostContainers().find((container) => container.contains(editor));
+  if (!post) return null;
+  const composer = findComposerScope(editor);
+  const mention = normalizeInlineText(`${editor.textContent ?? ''} ${composer.textContent ?? ''}`);
+  const precedingAuthors = Array.from(
+    post.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]'),
+  ).filter((link) => !composer.contains(link) && precedes(link, editor));
+  const authorsNearestFirst = [...precedingAuthors].reverse();
+  const mentionedAuthor = authorsNearestFirst.find((link) => {
+    const author = normalizeInlineText(link.textContent);
+    return (
+      mention.length > 0 &&
+      author.length > 0 &&
+      (mention.includes(author) || author.includes(mention))
+    );
+  });
+
+  const known = editor.closest<HTMLElement>(NATIVE_COMMENT_CONTAINER_SELECTOR);
+  if (known && !mentionedAuthor) return known;
+  const targetAuthor = mentionedAuthor ?? authorsNearestFirst[0];
+  if (!targetAuthor) return known;
+
+  let common = targetAuthor.parentElement;
+  while (common && common !== post && !common.contains(editor)) common = common.parentElement;
+  if (!common || common === post) {
+    const targetKnown = targetAuthor.closest<HTMLElement>(NATIVE_COMMENT_CONTAINER_SELECTOR);
+    return targetKnown ?? known;
+  }
+
+  const authorsInCommon = precedingAuthors.filter((link) => common.contains(link));
+  if (authorsInCommon.length > 1) {
+    const targetBranch = branchUnder(common, targetAuthor);
+    if (targetBranch) return targetBranch;
+  }
+  return common;
 }
 
 function cleanText(root: HTMLElement): string {
@@ -92,6 +161,17 @@ export function findCommentContainers(root: ParentNode = document): HTMLElement[
     const container = deriveCommentContainer(action);
     if (container && !seen.has(container)) {
       container.setAttribute(DYNAMIC_COMMENT_ATTRIBUTE, 'true');
+      seen.add(container);
+      comments.push(container);
+    }
+  }
+  for (const editor of root.querySelectorAll<HTMLElement>(REPLY_EDITOR_SELECTOR)) {
+    if (!isEditable(editor) || !isVisible(editor)) continue;
+    const container = deriveCommentContainerFromEditor(editor);
+    if (!container) continue;
+    container.setAttribute(DYNAMIC_COMMENT_ATTRIBUTE, 'true');
+    editorTargetRegistry.set(editor, container);
+    if (!seen.has(container)) {
       seen.add(container);
       comments.push(container);
     }
@@ -247,6 +327,8 @@ function isNestedReply(container: HTMLElement): boolean {
 }
 
 function findOwnReplyWrap(container: HTMLElement): HTMLElement | null {
+  const registered = replyWrapRegistry.get(container);
+  if (registered?.isConnected) return registered;
   return (
     Array.from(container.querySelectorAll<HTMLElement>('.insightreply-reply-wrap')).find(
       (element) => belongsToComment(element, container),
@@ -313,28 +395,52 @@ function createReplyButton(): HTMLButtonElement {
 
 export function injectReplyButton(container: HTMLElement): void {
   const nested = isNestedReply(container);
-  const hasOpenEditor = Boolean(findReplyEditor(container));
-  if (!nested && !hasOpenEditor) {
+  const editor = findReplyEditor(container);
+  if (!nested && !editor) {
     findOwnReplyWrap(container)?.remove();
     container.removeAttribute(REPLY_MOUNTED_ATTRIBUTE);
     return;
   }
-  if (container.hasAttribute(REPLY_MOUNTED_ATTRIBUTE)) return;
-  const replyAction = findReplyAction(container);
-  if (!replyAction) return;
+  const replyAction = editor ? null : findReplyAction(container);
+  if (!editor && !replyAction) {
+    findOwnReplyWrap(container)?.remove();
+    container.removeAttribute(REPLY_MOUNTED_ATTRIBUTE);
+    return;
+  }
 
-  const button = createReplyButton();
-  const wrap = document.createElement('span');
-  wrap.className = 'insightreply-reply-wrap';
-  wrap.appendChild(button);
-  replyAction.insertAdjacentElement('afterend', wrap);
+  let wrap = findOwnReplyWrap(container);
+  let button = wrap?.querySelector<HTMLButtonElement>('.insightreply-reply-button') ?? null;
+  if (!wrap || !button) {
+    button = createReplyButton();
+    wrap = document.createElement('span');
+    wrap.className = 'insightreply-reply-wrap';
+    wrap.style.cssText = 'display:inline-flex;align-items:center;flex:none;';
+    wrap.appendChild(button);
+    replyWrapRegistry.set(container, wrap);
+
+    button.addEventListener('click', (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      void handleReplyButtonClick(container, button!);
+    });
+  }
+
+  if (editor) {
+    const composer = findComposerScope(editor);
+    const submit = Array.from(composer.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
+      (candidate) =>
+        !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
+        isVisible(candidate) &&
+        matchesReplyActionText(
+          candidate.getAttribute('aria-label') ?? candidate.textContent,
+        ),
+    );
+    if (submit) submit.insertAdjacentElement('beforebegin', wrap);
+    else editor.insertAdjacentElement('afterend', wrap);
+  } else {
+    replyAction!.insertAdjacentElement('afterend', wrap);
+  }
   container.setAttribute(REPLY_MOUNTED_ATTRIBUTE, 'true');
-
-  button.addEventListener('click', (event) => {
-    event.preventDefault();
-    event.stopPropagation();
-    void handleReplyButtonClick(container, button);
-  });
 }
 
 async function handleReplyButtonClick(
@@ -371,7 +477,10 @@ export function findReplyEditor(container: HTMLElement): HTMLElement | null {
     const candidates = Array.from(container.querySelectorAll<HTMLElement>(selector));
     const own = candidates.find(
       (candidate) =>
-        belongsToComment(candidate, container) && isEditable(candidate) && isVisible(candidate),
+        (editorTargetRegistry.get(candidate) ??
+          (belongsToComment(candidate, container) ? container : null)) === container &&
+        isEditable(candidate) &&
+        isVisible(candidate),
     );
     if (own) return own;
   }
@@ -380,6 +489,8 @@ export function findReplyEditor(container: HTMLElement): HTMLElement | null {
   for (const selector of REPLY_EDITOR_SELECTORS) {
     const candidate = Array.from(siblingScope.querySelectorAll<HTMLElement>(selector)).find(
       (element) => {
+        const mapped = editorTargetRegistry.get(element);
+        if (mapped) return mapped === container && isEditable(element) && isVisible(element);
         const owner = element.closest<HTMLElement>(COMMENT_CONTAINER_SELECTOR);
         return (!owner || owner === container) && isEditable(element) && isVisible(element);
       },
