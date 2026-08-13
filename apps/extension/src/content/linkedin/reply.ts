@@ -1,4 +1,4 @@
-import type { SelectedPost } from '@insightreply/shared';
+import { hasMessageContent, type SelectedPost } from '@insightreply/shared';
 import { extractPostData, findPostContainers } from './adapter.js';
 import { dispatchSelection, showToast } from './button.js';
 import { setEditorText, appendEditorText, detectExistingText } from './insert.js';
@@ -195,13 +195,15 @@ function cleanReplyCandidate(element: HTMLElement): string {
       ?.replace(/\s+/g, ' ')
       .trim()
       .replace(/^(?:u?h?m{3,})[,.!…-]*\s*/i, '')
+      .replace(/^(?:\.{2,}|…+)\s*(?=[\p{L}\p{N}\p{Extended_Pictographic}])/u, '')
       .trim() ?? ''
   );
 }
 
 function isReplyMetadataText(text: string): boolean {
   return (
-    /^(?:\.{3}|…)?\s*more$/i.test(text) ||
+    /^(?:(?:\.{2,}|…+)(?:\s*more)?|more)$/i.test(text) ||
+    !hasMessageContent(text) ||
     /^\d+\s*(?:s|m|h|d|w|mo|y|yr)s?$/i.test(text) ||
     /^\d+(?:\s+(?:reaction|reactions|impression|impressions))?$/i.test(text) ||
     /^(?:Author|You|LinkedIn member)$/i.test(text)

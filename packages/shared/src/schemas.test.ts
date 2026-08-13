@@ -126,10 +126,24 @@ describe('selectedPostSchema', () => {
         targetId: 'urn:li:comment:2',
         authorName: 'Grace',
         text: 'A reply directed at the user.',
-        parentCommentText: 'The user\'s earlier comment.',
+        parentCommentText: "The user's earlier comment.",
       },
     });
     expect(result.success).toBe(true);
+  });
+
+  it('rejects punctuation-only text as a selected reply', () => {
+    const result = selectedPostSchema.safeParse({
+      postId: 'urn:li:activity:1',
+      postText: 'Some text',
+      selectedAt: new Date().toISOString(),
+      replyContext: {
+        targetId: 'urn:li:comment:2',
+        authorName: 'Grace',
+        text: '...',
+      },
+    });
+    expect(result.success).toBe(false);
   });
 });
 

@@ -16,6 +16,7 @@ import {
   POST_WITH_MULTIPLE_REPLY_THREADS,
   POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER,
   POST_WITH_REPLY_THREAD,
+  POST_WITH_STANDALONE_ELLIPSIS_REPLY_COMPOSER,
 } from '../../../test/fixtures.js';
 
 afterEach(() => {
@@ -160,6 +161,19 @@ describe('reply discovery and extraction', () => {
         parentCommentText:
           'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
       },
+    });
+  });
+
+  it('ignores a standalone LinkedIn ellipsis and selects the member reply beside it', () => {
+    const root = FEED_CONTAINER(POST_WITH_STANDALONE_ELLIPSIS_REPLY_COMPOSER);
+    const comments = findCommentContainers(root);
+    const incoming = root.querySelector('.modern-incoming-reply') as HTMLElement;
+
+    expect(comments).toContain(incoming);
+    expect(extractReplySelection(incoming)?.replyContext).toMatchObject({
+      authorName: 'Oyindamola Oye-Daniel',
+      text: 'Amazing, thanks for this beautiful contribution. 🙏',
+      parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
     });
   });
 });

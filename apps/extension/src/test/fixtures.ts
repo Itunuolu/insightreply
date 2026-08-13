@@ -319,6 +319,20 @@ export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
 `;
 
 /**
+ * LinkedIn sometimes renders a standalone overflow/continuation ellipsis as a
+ * direction-marked text node while the actual reply is nested separately.
+ * The ellipsis must never be mistaken for the member's reply text.
+ */
+export const POST_WITH_STANDALONE_ELLIPSIS_REPLY_COMPOSER =
+  POST_WITH_MODERN_NESTED_REPLY_COMPOSER.replace(
+    '<div class="modern-incoming-copy" dir="ltr">',
+    '<span class="modern-incoming-overflow" dir="ltr">...</span><div class="modern-incoming-copy" dir="ltr">',
+  ).replace(
+    '<div>Amazing, thanks for this beautiful contribution. 🙏</div>',
+    '<div><span>Amazing, thanks for this beautiful contribution. 🙏</span></div>',
+  );
+
+/**
  * The live LinkedIn reply journey can mark the outer parent/reply thread as a
  * native comment. The incoming reply and its composer then live inside that
  * same native boundary, so generic comment extraction sees the whole thread.
@@ -340,6 +354,15 @@ export const POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER =
       '<a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>\n        <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>',
       '<a class="modern-incoming-profile" href="/in/oyindamola"><span>Oyindamola Oye-Daniel</span><span>Author</span><span>Senior Product Manager | Building Scalable Products in Ambiguous Environments | Execution → Adoption → Growth → Impact | Founder: PM Women’s Hub & Product Bosslady Academy | Author: My Product Journey</span></a>\n        <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>',
     );
+
+export const POST_WITH_NATIVE_WRAPPED_STANDALONE_ELLIPSIS_REPLY_COMPOSER =
+  POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER.replace(
+    '<div class="modern-incoming-copy" dir="ltr">',
+    '<span class="modern-incoming-overflow" dir="ltr">...</span><div class="modern-incoming-copy" dir="ltr">',
+  ).replace(
+    '<div>Amazing, thanks for this beautiful contribution. 🙏</div>',
+    '<div><span>Amazing, thanks for this beautiful contribution. 🙏</span></div>',
+  );
 
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');

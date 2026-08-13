@@ -10,7 +10,7 @@ import {
   POST_WITH_OPEN_EDITOR,
   POST_WITH_MODERN_ICON_REPLY_COMPOSER,
   POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
-  POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER,
+  POST_WITH_NATIVE_WRAPPED_STANDALONE_ELLIPSIS_REPLY_COMPOSER,
   POST_WITH_REPLY_THREAD,
   TRUNCATED_POST,
 } from '../../src/test/fixtures.js';
@@ -416,15 +416,61 @@ test.describe('InsightReply extension smoke test', () => {
 
   test('an already-open panel receives a reply selected through the real service worker', async () => {
     const panel = await context.newPage();
+    const generationRequests: Array<{
+      post?: { text?: string };
+      reply?: { authorName?: string; text?: string };
+    }> = [];
+    await panel.route('https://insightreply-api.vercel.app/**', async (route) => {
+      const request = route.request();
+      if (!request.url().endsWith('/v1/comments/generate')) {
+        await route.continue();
+        return;
+      }
+      const body = request.postDataJSON() as (typeof generationRequests)[number];
+      generationRequests.push(body);
+      const replyText = body.reply?.text;
+      const text = replyText
+        ? 'Thank you, Oyindamola. I truly appreciate your thoughtful response.'
+        : 'You raise a compelling point about attribution and enabled outcomes.';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          requestId: `req_${generationRequests.length}`,
+          postSummary: replyText ? 'Oyindamola thanked the user.' : 'A post about attribution.',
+          suggestions: [1, 2, 3].map((index) => ({
+            id: `suggestion_${generationRequests.length}_${index}`,
+            tone: 'professional',
+            text: `${text} ${index}`,
+          })),
+        }),
+      });
+    });
     await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(panel.getByText('No conversation selected')).toBeVisible();
+
+    // Seed and generate an old conversation first. Selecting Oyindamola's
+    // reply must clear these drafts so they cannot masquerade as her result.
+    await panel.evaluate(async () => {
+      await chrome.storage.session.set({
+        'insightReply.selectedPost': {
+          postId: 'urn:li:activity:old_attribution_post',
+          authorName: 'Product Leader',
+          postText: 'The shift from measurable deliverables to enabling intangible outcomes.',
+          selectedAt: new Date().toISOString(),
+        },
+      });
+    });
+    await expect(panel.getByText('Selected post')).toBeVisible();
+    await panel.getByRole('button', { name: 'Generate 3 Comments' }).click();
+    await expect(panel.getByText(/compelling point about attribution/).first()).toBeVisible();
 
     const linkedin = await context.newPage();
     await linkedin.route('https://www.linkedin.com/**', async (route) => {
       await route.fulfill({
         status: 200,
         contentType: 'text/html; charset=utf-8',
-        body: `<!doctype html><html><body><main>${POST_WITH_NATIVE_WRAPPED_NESTED_REPLY_COMPOSER}</main></body></html>`,
+        body: `<!doctype html><html><body><main>${POST_WITH_NATIVE_WRAPPED_STANDALONE_ELLIPSIS_REPLY_COMPOSER}</main></body></html>`,
       });
     });
     await linkedin.goto('https://www.linkedin.com/feed/');
@@ -438,6 +484,7 @@ test.describe('InsightReply extension smoke test', () => {
     await expect(
       panel.getByText('Amazing, thanks for this beautiful contribution. 🙏'),
     ).toBeVisible();
+    await expect(panel.getByText(/compelling point about attribution/)).toHaveCount(0);
     await expect(panel.getByText('Your comment')).toBeVisible();
     await expect(
       panel.getByText(
@@ -445,6 +492,13 @@ test.describe('InsightReply extension smoke test', () => {
       ),
     ).toBeVisible();
     await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
+
+    await panel.getByRole('button', { name: 'Generate 3 Replies' }).click();
+    await expect(panel.getByText(/Thank you, Oyindamola/).first()).toBeVisible();
+    expect(generationRequests.at(-1)?.reply).toMatchObject({
+      authorName: 'Oyindamola Oye-Daniel',
+      text: 'Amazing, thanks for this beautiful contribution. 🙏',
+    });
 
     // Regression: selecting the same reply again while the side panel is
     // already open must synchronize silently. Chrome can reject a redundant

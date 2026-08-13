@@ -199,6 +199,7 @@ const fixture = `<!doctype html>
                 <a href="/in/oyindamola"><span class="modern-author">Oyindamola Oye-Daniel</span><span>Author</span><span>Senior Product Manager | Building Scalable Products in Ambiguous Environments | Execution → Adoption → Growth → Impact | Founder: PM Women’s Hub & Product Bosslady Academy | Author: My Product Journey</span></a>
                 <div class="modern-subtitle">Author | Senior Product Manager | 4h</div>
                 <span>6h</span>
+                <span class="modern-incoming-overflow" dir="ltr">...</span>
                 <div class="modern-copy" dir="ltr">
                   <a href="/in/itunuoluwa">Itunuoluwa Akinkugbe</a>
                   <span>uhmmmmmm</span>

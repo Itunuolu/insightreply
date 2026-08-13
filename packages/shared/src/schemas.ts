@@ -33,6 +33,11 @@ const trimmedString = (max: number, label: string) =>
     .max(max, `${label} exceeds the maximum length of ${max} characters`)
     .default('');
 
+/** True when text contains a human message rather than only UI punctuation. */
+export function hasMessageContent(text: string): boolean {
+  return /[\p{L}\p{N}\p{Extended_Pictographic}]/u.test(text);
+}
+
 export const postSchema = z.object({
   authorName: trimmedString(MAX_AUTHOR_NAME_LENGTH, 'Author name').optional(),
   text: z
@@ -64,7 +69,8 @@ export const replyGenerationContextSchema = z.object({
     .string()
     .trim()
     .min(1, 'Reply text is required')
-    .max(MAX_COMMENT_LENGTH, `Reply exceeds the maximum length of ${MAX_COMMENT_LENGTH} characters`),
+    .max(MAX_COMMENT_LENGTH, `Reply exceeds the maximum length of ${MAX_COMMENT_LENGTH} characters`)
+    .refine(hasMessageContent, 'Reply text must contain a message, not only punctuation'),
   parentCommentAuthorName: trimmedString(
     MAX_AUTHOR_NAME_LENGTH,
     'Parent comment author name',
@@ -78,7 +84,6 @@ export const generateCommentsRequestSchema = z.object({
   preferences: preferencesSchema,
 });
 
-
 export const suggestionSchema = z.object({
   id: z.string().min(1).max(64),
   tone: z.string().min(1).max(64),
@@ -91,7 +96,6 @@ export const generateCommentsResponseSchema = z.object({
   suggestions: z.array(suggestionSchema).min(1).max(MAX_SUGGESTION_COUNT),
 });
 
-
 export const apiErrorSchema = z.object({
   error: z.object({
     code: z.string().min(1),
@@ -99,7 +103,6 @@ export const apiErrorSchema = z.object({
     requestId: z.string().optional(),
   }),
 });
-
 
 export const selectedReplyContextSchema = replyGenerationContextSchema.extend({
   targetId: z.string().min(1).max(MAX_REPLY_TARGET_ID_LENGTH),
@@ -114,7 +117,6 @@ export const selectedPostSchema = z.object({
   selectedAt: z.string().min(1),
   replyContext: selectedReplyContextSchema.optional(),
 });
-
 
 export const settingsSchema = z.object({
   defaultTone: z.enum(TONES),
