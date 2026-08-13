@@ -287,22 +287,29 @@ export const POST_WITH_MODERN_NESTED_REPLY_COMPOSER = `
   <section class="modern-comments-region">
     <div class="modern-parent-comment">
       <a href="/in/itunuoluwa"><span dir="auto">Itunuoluwa Akinkugbe</span></a>
+      <div class="modern-parent-meta">Senior Business Analyst | Digital Transformation | 5h</div>
       <div class="modern-parent-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
       <div class="modern-parent-actions">
-        <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
-        <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
+        <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg>1 reaction</button>
+        <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg>1</button>
+        <span>44 impressions</span>
       </div>
       <div class="modern-incoming-reply">
         <a href="/in/oyindamola"><span dir="auto">Oyindamola Oye-Daniel</span></a>
-        <div class="modern-incoming-copy" dir="ltr">Amazing, thanks for this beautiful contribution.</div>
+        <div class="modern-incoming-meta">Author Senior Product Manager | 4h</div>
+        <div class="modern-incoming-copy" dir="ltr">
+          <a class="modern-inline-mention" href="/in/itunuoluwa">Itunuoluwa Akinkugbe</a>
+          <span>uhmmmmmm</span>
+          <div>Amazing, thanks for this beautiful contribution. 🙏</div>
+        </div>
         <div class="modern-incoming-actions">
-          <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg></button>
+          <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg>2</button>
           <button><svg data-test-icon="reply-small"></svg></button>
         </div>
       </div>
       <div class="modern-reply-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
         <a href="/in/current-user"><span dir="auto">Current user</span></a>
-        <div contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
+        <div contenteditable="true" role="textbox" aria-label="Add a reply"><p></p></div>
         <button class="modern-reply-submit" type="button">Reply</button>
       </div>
     </div>

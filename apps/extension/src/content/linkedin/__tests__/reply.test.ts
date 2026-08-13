@@ -31,7 +31,9 @@ describe('reply discovery and extraction', () => {
     const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
     const incoming = root.querySelector('[data-urn="urn:li:comment:incoming_1"]') as HTMLElement;
     expect(extractCommentAuthor(incoming)).toBe('Grace Hopper');
-    expect(extractCommentText(incoming)).toBe('How do you separate a weak request from an unmet need?');
+    expect(extractCommentText(incoming)).toBe(
+      'How do you separate a weak request from an unmet need?',
+    );
   });
 
   it('builds a contextual selection with the post, parent comment, and reply target', () => {
@@ -46,7 +48,8 @@ describe('reply discovery and extraction', () => {
         authorName: 'Grace Hopper',
         text: 'How do you separate a weak request from an unmet need?',
         parentCommentAuthorName: 'You',
-        parentCommentText: 'The strongest signal is often the feature customers never ask for twice.',
+        parentCommentText:
+          'The strongest signal is often the feature customers never ask for twice.',
       },
     });
     expect(resolveReplyTarget('urn:li:comment:incoming_1')).toBe(incoming);
@@ -73,13 +76,16 @@ describe('reply discovery and extraction', () => {
     expect(comment.querySelector('.hashed-comment-actions + .insightreply-reply-wrap')).toBeNull();
     expect(comment.querySelector('.hashed-reply-submit + .insightreply-reply-wrap')).toBeNull();
 
-    expect(extractReplySelection(comment)).toMatchObject({
+    const selection = extractReplySelection(comment);
+    expect(selection).toMatchObject({
       authorName: 'Product Founder',
       replyContext: {
         authorName: 'Itunuoluwa Akinkugbe',
         text: 'One subtle point worth adding: API awareness improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.',
       },
     });
+    expect(selection?.replyContext?.parentCommentAuthorName).toBeUndefined();
+    expect(selection?.replyContext?.parentCommentText).toBeUndefined();
   });
 
   it('owns a classless nested composer by the incoming reply, not the parent comment', () => {
@@ -97,15 +103,21 @@ describe('reply discovery and extraction', () => {
     expect(
       composer.querySelector('.insightreply-reply-wrap + .modern-reply-submit'),
     ).not.toBeNull();
-    expect(extractReplySelection(incoming)).toMatchObject({
+    const selection = extractReplySelection(incoming);
+    expect(selection).toMatchObject({
       replyContext: {
         authorName: 'Oyindamola Oye-Daniel',
-        text: 'Amazing, thanks for this beautiful contribution.',
+        text: 'Amazing, thanks for this beautiful contribution. 🙏',
         parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
         parentCommentText:
           'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
       },
     });
+    const serialized = JSON.stringify(selection?.replyContext);
+    expect(serialized).not.toContain('Senior Business Analyst');
+    expect(serialized).not.toContain('impressions');
+    expect(serialized).not.toContain('uhmmmmmm');
+    expect(serialized).not.toContain('reaction');
   });
 });
 

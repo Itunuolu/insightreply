@@ -13,10 +13,7 @@ mkdirSync(output, { recursive: true });
 const userDataDir = mkdtempSync(join(tmpdir(), 'insightreply-visual-qa-'));
 const context = await chromium.launchPersistentContext(userDataDir, {
   headless: false,
-  args: [
-    `--disable-extensions-except=${extensionPath}`,
-    `--load-extension=${extensionPath}`,
-  ],
+  args: [`--disable-extensions-except=${extensionPath}`, `--load-extension=${extensionPath}`],
 });
 
 let worker;
@@ -39,8 +36,7 @@ const selectedReply = {
     authorName: 'Grace Hopper',
     text: 'How do you separate a weak request from an unmet need when both can sound equally urgent?',
     parentCommentAuthorName: 'You',
-    parentCommentText:
-      'The strongest signal is often the feature customers never ask for twice.',
+    parentCommentText: 'The strongest signal is often the feature customers never ask for twice.',
   },
 };
 
@@ -66,32 +62,28 @@ async function auditPanel(page, state, width, height) {
           };
         });
       const suspiciousCodePoints = ['\u00e2', '\u00c2', '\u00f0', '\ufffd'];
-      const controls = Array.from(
-        document.querySelectorAll('button, input, textarea, select'),
-      ).map((element) => {
-        const rect = element.getBoundingClientRect();
-        return {
-          label:
-            element.getAttribute('aria-label') ??
-            element.textContent?.trim() ??
-            element.getAttribute('placeholder') ??
-            element.tagName,
-          width: Math.round(rect.width),
-          height: Math.round(rect.height),
-        };
-      });
+      const controls = Array.from(document.querySelectorAll('button, input, textarea, select')).map(
+        (element) => {
+          const rect = element.getBoundingClientRect();
+          return {
+            label:
+              element.getAttribute('aria-label') ??
+              element.textContent?.trim() ??
+              element.getAttribute('placeholder') ??
+              element.tagName,
+            width: Math.round(rect.width),
+            height: Math.round(rect.height),
+          };
+        },
+      );
       return {
         state: label,
         viewport: { width: viewportWidth, height: viewportHeight },
         documentScrollWidth: document.documentElement.scrollWidth,
         bodyScrollWidth: document.body.scrollWidth,
         overflow,
-        corruptText: suspiciousCodePoints.some((value) =>
-          document.body.innerText.includes(value),
-        ),
-        controlsUnder24px: controls.filter(
-          (control) => control.width < 24 || control.height < 24,
-        ),
+        corruptText: suspiciousCodePoints.some((value) => document.body.innerText.includes(value)),
+        controlsUnder24px: controls.filter((control) => control.width < 24 || control.height < 24),
       };
     },
     { label: state, viewportWidth: width, viewportHeight: height },
@@ -115,10 +107,7 @@ await panel.screenshot({ path: join(output, '02-selected-reply-360x800.png') });
 audits.selectedReply = await auditPanel(panel, 'selected-reply', 360, 800);
 
 await panel.getByRole('button', { name: /Generate \d+ Replies/i }).click();
-await panel
-  .getByRole('button', { name: 'Insert reply' })
-  .first()
-  .waitFor({ timeout: 30_000 });
+await panel.getByRole('button', { name: 'Insert reply' }).first().waitFor({ timeout: 30_000 });
 await panel.screenshot({ path: join(output, '03-generated-replies-top-360x800.png') });
 const main = panel.locator('main');
 await main.evaluate((element) => {
@@ -197,26 +186,31 @@ const fixture = `<!doctype html>
           <div class="modern-parent-comment" data-comment-id="modern-user-comment">
             <div class="comment-bubble">
               <a href="/in/itunuoluwa"><span class="modern-author" dir="auto">Itunuoluwa Akinkugbe</span></a>
-              <div class="modern-subtitle">Senior Business Analyst | Digital Transformation</div>
+              <div class="modern-subtitle">Senior Business Analyst | Digital Transformation | 5h</div>
               <div class="modern-copy" dir="ltr">I suspect the real challenge lies in measuring what you enable rather than what you deliver.</div>
             </div>
             <div class="modern-actions">
-              <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
-              <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
+              <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg>1 reaction</button>
+              <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg>1</button>
+              <span>44 impressions</span>
             </div>
             <div class="modern-incoming-reply" data-comment-id="modern-incoming-reply">
               <div class="comment-bubble">
                 <a href="/in/oyindamola"><span class="modern-author" dir="auto">Oyindamola Oye-Daniel</span></a>
-                <div class="modern-subtitle">Senior Product Manager</div>
-                <div class="modern-copy" dir="ltr">Amazing, thanks for this beautiful contribution.</div>
+                <div class="modern-subtitle">Author | Senior Product Manager | 4h</div>
+                <div class="modern-copy" dir="ltr">
+                  <a href="/in/itunuoluwa">Itunuoluwa Akinkugbe</a>
+                  <span>uhmmmmmm</span>
+                  <div>Amazing, thanks for this beautiful contribution.</div>
+                </div>
               </div>
               <div class="modern-actions">
-                <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg></button>
+                <button aria-label="React to reply"><svg data-test-icon="thumbs-up-small"></svg>2</button>
                 <button><svg data-test-icon="reply-small"></svg></button>
               </div>
             </div>
             <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
-              <div class="modern-editor" contenteditable="true" role="textbox"><p>Oyindamola Oye-Daniel</p></div>
+              <div class="modern-editor" contenteditable="true" role="textbox" aria-label="Add a reply"><p></p></div>
               <button class="modern-submit" type="button">Reply</button>
             </div>
           </div>
@@ -246,21 +240,21 @@ await panel.screenshot({
 });
 audits.linkedin = await linkedin.evaluate(() => {
   const suspiciousCodePoints = ['\u00e2', '\u00c2', '\u00f0', '\ufffd'];
-  const buttons = Array.from(
-    document.querySelectorAll('button.insightreply-reply-button'),
-  ).map((element) => {
-    const rect = element.getBoundingClientRect();
-    const style = getComputedStyle(element);
-    return {
-      text: element.textContent,
-      width: Math.round(rect.width),
-      height: Math.round(rect.height),
-      color: style.color,
-      border: style.border,
-      x: Math.round(rect.x),
-      y: Math.round(rect.y),
-    };
-  });
+  const buttons = Array.from(document.querySelectorAll('button.insightreply-reply-button')).map(
+    (element) => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return {
+        text: element.textContent,
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        color: style.color,
+        border: style.border,
+        x: Math.round(rect.x),
+        y: Math.round(rect.y),
+      };
+    },
+  );
   return {
     buttonCount: buttons.length,
     buttons,
@@ -269,30 +263,26 @@ audits.linkedin = await linkedin.evaluate(() => {
         document.querySelector('.modern-composer .insightreply-reply-button'),
       ),
       immediatelyBeforeSubmit: Boolean(
-        document.querySelector(
-          '.modern-composer .insightreply-reply-wrap + .modern-submit',
-        ),
+        document.querySelector('.modern-composer .insightreply-reply-wrap + .modern-submit'),
       ),
       attachedToParentAction: Boolean(
-        document.querySelector('.modern-parent-comment > .modern-actions + .insightreply-reply-wrap'),
+        document.querySelector(
+          '.modern-parent-comment > .modern-actions + .insightreply-reply-wrap',
+        ),
       ),
       attachedToIncomingAction: Boolean(
         document.querySelector('.modern-incoming-reply .modern-actions + .insightreply-reply-wrap'),
       ),
     },
     noMisleadingToast: !document.querySelector('.insightreply-toast'),
-    corruptText: suspiciousCodePoints.some((value) =>
-      document.body.innerText.includes(value),
-    ),
+    corruptText: suspiciousCodePoints.some((value) => document.body.innerText.includes(value)),
   };
 });
 audits.linkedin.selectedReply = await panel.evaluate(async () => {
   const stored = await chrome.storage.session.get('insightReply.selectedPost');
   return stored['insightReply.selectedPost']?.replyContext ?? null;
 });
-audits.linkedin.panelSynced = await panel
-  .getByText('Reply from Oyindamola Oye-Daniel')
-  .isVisible();
+audits.linkedin.panelSynced = await panel.getByText('Reply from Oyindamola Oye-Daniel').isVisible();
 
 if (
   audits.linkedin.buttonCount !== 1 ||
@@ -303,7 +293,14 @@ if (
   !audits.linkedin.noMisleadingToast ||
   !audits.linkedin.panelSynced ||
   audits.linkedin.selectedReply?.authorName !== 'Oyindamola Oye-Daniel' ||
-  audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe'
+  audits.linkedin.selectedReply?.text !== 'Amazing, thanks for this beautiful contribution.' ||
+  audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe' ||
+  audits.linkedin.selectedReply?.parentCommentText !==
+    'I suspect the real challenge lies in measuring what you enable rather than what you deliver.' ||
+  JSON.stringify(audits.linkedin.selectedReply).includes('Senior Business Analyst') ||
+  JSON.stringify(audits.linkedin.selectedReply).includes('impressions') ||
+  JSON.stringify(audits.linkedin.selectedReply).includes('uhmmmmmm') ||
+  JSON.stringify(audits.linkedin.selectedReply).includes('reaction')
 ) {
   throw new Error(`LinkedIn reply QA failed: ${JSON.stringify(audits.linkedin)}`);
 }

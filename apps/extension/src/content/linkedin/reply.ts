@@ -20,10 +20,16 @@ const REPLY_BUTTON_TEXT = '✨ AI Reply';
 const replyRegistry = new Map<string, HTMLElement>();
 const editorTargetRegistry = new WeakMap<HTMLElement, HTMLElement>();
 const replyWrapRegistry = new WeakMap<HTMLElement, HTMLElement>();
-const replyLocators = new Map<
-  string,
-  { postId: string; authorName?: string; text: string }
+const replyContextRegistry = new WeakMap<
+  HTMLElement,
+  {
+    authorName?: string;
+    text: string;
+    parentCommentAuthorName?: string;
+    parentCommentText?: string;
+  }
 >();
+const replyLocators = new Map<string, { postId: string; authorName?: string; text: string }>();
 
 const COMMENT_CONTAINER_SELECTOR = COMMENT_CONTAINER_SELECTORS.join(',');
 const NATIVE_COMMENT_CONTAINER_SELECTOR = COMMENT_CONTAINER_SELECTORS.filter(
@@ -81,6 +87,173 @@ function branchUnder(ancestor: HTMLElement, descendant: HTMLElement): HTMLElemen
   return branch.parentElement === ancestor ? branch : null;
 }
 
+function profileLinkAuthor(link: HTMLAnchorElement): string | undefined {
+  const candidates = [
+    link.querySelector<HTMLElement>('[data-testid="comment-author-name"]'),
+    link.querySelector<HTMLElement>('[data-view-name="comment-author"]'),
+    link.querySelector<HTMLElement>('.comments-post-meta__name-text'),
+    link.querySelector<HTMLElement>('.comments-comment-meta__description-title'),
+    link.querySelector<HTMLElement>('span[dir="auto"]'),
+    link.querySelector<HTMLElement>('span[aria-hidden="true"]'),
+    link,
+  ];
+  for (const candidate of candidates) {
+    const name = candidate?.textContent?.replace(/\s+/g, ' ').trim();
+    if (name && name.length <= 200) return name;
+  }
+  return undefined;
+}
+
+function isInlineProfileMention(link: HTMLAnchorElement): boolean {
+  const textBlock = link.closest<HTMLElement>(
+    '[data-testid="comment-text"], [data-view-name="comment-text"], [dir="ltr"]',
+  );
+  if (!textBlock || textBlock === link) return false;
+  const author = normalizeInlineText(profileLinkAuthor(link));
+  const surroundingText = normalizeInlineText(textBlock.textContent);
+  return author.length > 0 && surroundingText.length > author.length;
+}
+
+function profileAuthorsBeforeEditor(
+  post: HTMLElement,
+  composer: HTMLElement,
+  editor: HTMLElement,
+): HTMLAnchorElement[] {
+  return Array.from(post.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]')).filter(
+    (link) =>
+      !composer.contains(link) &&
+      precedes(link, editor) &&
+      !isInlineProfileMention(link) &&
+      Boolean(profileLinkAuthor(link)),
+  );
+}
+
+function selectTargetAuthor(
+  authors: HTMLAnchorElement[],
+  editor: HTMLElement,
+  composer: HTMLElement,
+): HTMLAnchorElement | undefined {
+  const mention = normalizeInlineText(`${editor.textContent ?? ''} ${composer.textContent ?? ''}`);
+  const nearestFirst = [...authors].reverse();
+  return (
+    nearestFirst.find((link) => {
+      const author = normalizeInlineText(profileLinkAuthor(link));
+      return (
+        mention.length > 0 &&
+        author.length > 0 &&
+        (mention.includes(author) || author.includes(mention))
+      );
+    }) ?? nearestFirst[0]
+  );
+}
+
+function directText(element: HTMLElement): string {
+  return Array.from(element.childNodes)
+    .filter((node) => node.nodeType === Node.TEXT_NODE)
+    .map((node) => node.textContent ?? '')
+    .join(' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+function cleanReplyCandidate(element: HTMLElement): string {
+  const clone = element.cloneNode(true) as HTMLElement;
+  for (const selector of [
+    `.${OWN_ELEMENT_CLASS}`,
+    '.insightreply-reply-button',
+    '.insightreply-reply-wrap',
+    'a[href*="/in/"]',
+    'button',
+    '[role="button"]',
+    'svg',
+    'time',
+    ...REPLY_EDITOR_SELECTORS,
+  ]) {
+    for (const child of clone.querySelectorAll<HTMLElement>(selector)) child.remove();
+  }
+  return clone.textContent?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+function extractTextBetween(
+  root: HTMLElement,
+  start: HTMLElement,
+  end: HTMLElement,
+): string | undefined {
+  let best: { score: number; text: string } | undefined;
+  const candidates = root.querySelectorAll<HTMLElement>(
+    '[data-testid="comment-text"], [data-view-name="comment-text"], .comments-comment-item__main-content, .comments-comment-item-content-body, [dir="ltr"], div, p, span',
+  );
+  for (const candidate of candidates) {
+    if (
+      candidate === start ||
+      candidate === end ||
+      candidate.contains(start) ||
+      candidate.contains(end) ||
+      !precedes(start, candidate) ||
+      !precedes(candidate, end) ||
+      !isVisible(candidate)
+    ) {
+      continue;
+    }
+
+    const rawDirectText = directText(candidate);
+    const knownTextContainer = candidate.matches(
+      '[data-testid="comment-text"], [data-view-name="comment-text"], .comments-comment-item__main-content, .comments-comment-item-content-body, [dir="ltr"]',
+    );
+    if (!rawDirectText && !knownTextContainer) continue;
+
+    const text = cleanReplyCandidate(candidate);
+    if (!text || text.length > 4_000) continue;
+
+    const className = typeof candidate.className === 'string' ? candidate.className : '';
+    let score = 0;
+    if (knownTextContainer) score += 50;
+    if (rawDirectText) score += 35;
+    if (/[.!?]/.test(text) || text.length >= 24) score += 25;
+    if (/copy|content|body|commentary/i.test(className)) score += 20;
+    if (/meta|subtitle|action|social|reaction/i.test(className)) score -= 100;
+    if (candidate.querySelector('a[href*="/in/"]')) score -= 80;
+    if (candidate.querySelector('button, [role="button"]')) score -= 60;
+    if (/\b(?:reaction|reactions|impression|impressions)\b/i.test(text)) score -= 100;
+    score += Math.min(text.length, 200) / 200;
+
+    if (!best || score > best.score) best = { score, text };
+  }
+  return best?.score !== undefined && best.score > 0 ? best.text : undefined;
+}
+
+function captureBoundedReplyContext(editor: HTMLElement, container: HTMLElement): void {
+  const post = findPostContainers().find((candidate) => candidate.contains(editor));
+  if (!post) return;
+  const composer = findComposerScope(editor);
+  const authors = profileAuthorsBeforeEditor(post, composer, editor);
+  const targetAuthor = selectTargetAuthor(authors, editor, composer);
+  if (!targetAuthor) return;
+
+  const text = extractTextBetween(post, targetAuthor, composer);
+  if (!text) return;
+
+  const targetIndex = authors.indexOf(targetAuthor);
+  const previousAuthor = targetIndex > 0 ? authors[targetIndex - 1] : undefined;
+  let threadScope = targetAuthor.parentElement;
+  while (threadScope && threadScope !== post && !threadScope.contains(composer)) {
+    threadScope = threadScope.parentElement;
+  }
+  const parentAuthor =
+    previousAuthor && threadScope && threadScope !== post && threadScope.contains(previousAuthor)
+      ? previousAuthor
+      : undefined;
+  const parentCommentText = parentAuthor
+    ? extractTextBetween(post, parentAuthor, targetAuthor)
+    : undefined;
+  replyContextRegistry.set(container, {
+    authorName: profileLinkAuthor(targetAuthor),
+    text,
+    parentCommentAuthorName: parentAuthor ? profileLinkAuthor(parentAuthor) : undefined,
+    parentCommentText,
+  });
+}
+
 /**
  * LinkedIn can render an open reply composer as a sibling of the incoming
  * reply. Resolve the target from the @mention in that composer and the nearest
@@ -90,35 +263,29 @@ function deriveCommentContainerFromEditor(editor: HTMLElement): HTMLElement | nu
   const post = findPostContainers().find((container) => container.contains(editor));
   if (!post) return null;
   const composer = findComposerScope(editor);
-  const mention = normalizeInlineText(`${editor.textContent ?? ''} ${composer.textContent ?? ''}`);
-  const precedingAuthors = Array.from(
-    post.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]'),
-  ).filter((link) => !composer.contains(link) && precedes(link, editor));
+  const precedingAuthors = profileAuthorsBeforeEditor(post, composer, editor);
   const authorsNearestFirst = [...precedingAuthors].reverse();
-  const mentionedAuthor = authorsNearestFirst.find((link) => {
-    const author = normalizeInlineText(link.textContent);
-    return (
-      mention.length > 0 &&
-      author.length > 0 &&
-      (mention.includes(author) || author.includes(mention))
-    );
-  });
+  const targetAuthor = selectTargetAuthor(precedingAuthors, editor, composer);
+  const mentionedAuthor =
+    targetAuthor && targetAuthor !== authorsNearestFirst[0] ? targetAuthor : undefined;
 
   const known = editor.closest<HTMLElement>(NATIVE_COMMENT_CONTAINER_SELECTOR);
   if (known && !mentionedAuthor) return known;
-  const targetAuthor = mentionedAuthor ?? authorsNearestFirst[0];
-  if (!targetAuthor) return known;
+  const resolvedTargetAuthor = targetAuthor ?? authorsNearestFirst[0];
+  if (!resolvedTargetAuthor) return known;
 
-  let common = targetAuthor.parentElement;
+  let common = resolvedTargetAuthor.parentElement;
   while (common && common !== post && !common.contains(editor)) common = common.parentElement;
   if (!common || common === post) {
-    const targetKnown = targetAuthor.closest<HTMLElement>(NATIVE_COMMENT_CONTAINER_SELECTOR);
+    const targetKnown = resolvedTargetAuthor.closest<HTMLElement>(
+      NATIVE_COMMENT_CONTAINER_SELECTOR,
+    );
     return targetKnown ?? known;
   }
 
   const authorsInCommon = precedingAuthors.filter((link) => common.contains(link));
   if (authorsInCommon.length > 1) {
-    const targetBranch = branchUnder(common, targetAuthor);
+    const targetBranch = branchUnder(common, resolvedTargetAuthor);
     if (targetBranch) return targetBranch;
   }
   return common;
@@ -171,6 +338,9 @@ export function findCommentContainers(root: ParentNode = document): HTMLElement[
     if (!container) continue;
     container.setAttribute(DYNAMIC_COMMENT_ATTRIBUTE, 'true');
     editorTargetRegistry.set(editor, container);
+    if (!container.matches(NATIVE_COMMENT_CONTAINER_SELECTOR)) {
+      captureBoundedReplyContext(editor, container);
+    }
     if (!seen.has(container)) {
       seen.add(container);
       comments.push(container);
@@ -240,15 +410,17 @@ function findReplyAction(container: HTMLElement): HTMLElement | null {
       return candidate;
     }
   }
-  return Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
-    (candidate) =>
-      !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
-      belongsToComment(candidate, container) &&
-      matchesReplyActionText(candidate.textContent) &&
-      !isEditorElement(candidate) &&
-      !looksLikeReplySubmit(candidate) &&
-      isVisible(candidate),
-  ) ?? null;
+  return (
+    Array.from(container.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
+      (candidate) =>
+        !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
+        belongsToComment(candidate, container) &&
+        matchesReplyActionText(candidate.textContent) &&
+        !isEditorElement(candidate) &&
+        !looksLikeReplySubmit(candidate) &&
+        isVisible(candidate),
+    ) ?? null
+  );
 }
 
 function nativeCommentId(container: HTMLElement): string | undefined {
@@ -297,8 +469,14 @@ export function resolveReplyTarget(targetId: string): HTMLElement | null {
   const locator = replyLocators.get(targetId);
   if (locator) {
     const matching = findCommentContainers().find((container) => {
-      if (extractCommentText(container) !== locator.text) return false;
-      if (locator.authorName && extractCommentAuthor(container) !== locator.authorName) return false;
+      const bounded = replyContextRegistry.get(container);
+      if ((bounded?.text ?? extractCommentText(container)) !== locator.text) return false;
+      if (
+        locator.authorName &&
+        (bounded?.authorName ?? extractCommentAuthor(container)) !== locator.authorName
+      ) {
+        return false;
+      }
       const postContainer = findPostContainers().find((post) => post.contains(container));
       if (!postContainer) return false;
       return extractPostData(postContainer).post?.postId === locator.postId;
@@ -318,7 +496,7 @@ function findParentComment(container: HTMLElement): HTMLElement | null {
   if (!thread) return null;
   const comments = findCommentContainers(thread);
   const index = comments.indexOf(container);
-  return index > 0 ? comments[index - 1] ?? null : null;
+  return index > 0 ? (comments[index - 1] ?? null) : null;
 }
 
 function isNestedReply(container: HTMLElement): boolean {
@@ -337,7 +515,8 @@ function findOwnReplyWrap(container: HTMLElement): HTMLElement | null {
 }
 
 export function extractReplySelection(container: HTMLElement): SelectedPost | null {
-  const incomingText = extractCommentText(container);
+  const bounded = replyContextRegistry.get(container);
+  const incomingText = bounded?.text ?? extractCommentText(container);
   if (!incomingText || incomingText.length > 4_000) return null;
 
   const postContainer = findPostContainers().find((post) => post.contains(container)) ?? null;
@@ -345,10 +524,12 @@ export function extractReplySelection(container: HTMLElement): SelectedPost | nu
   const post = extractPostData(postContainer).post;
   if (!post) return null;
 
-  const incomingAuthor = extractCommentAuthor(container);
-  const parent = findParentComment(container);
-  const parentText = parent ? extractCommentText(parent) : undefined;
-  const parentAuthor = parent ? extractCommentAuthor(parent) : undefined;
+  const incomingAuthor = bounded?.authorName ?? extractCommentAuthor(container);
+  const parent = bounded ? null : findParentComment(container);
+  const parentText =
+    bounded?.parentCommentText ?? (parent ? extractCommentText(parent) : undefined);
+  const parentAuthor =
+    bounded?.parentCommentAuthorName ?? (parent ? extractCommentAuthor(parent) : undefined);
   const targetId =
     nativeCommentId(container) ?? generatedReplyTargetId(post.postId, incomingAuthor, incomingText);
   registerReplyTarget(targetId, container, {
@@ -427,13 +608,13 @@ export function injectReplyButton(container: HTMLElement): void {
 
   if (editor) {
     const composer = findComposerScope(editor);
-    const submit = Array.from(composer.querySelectorAll<HTMLElement>('button, [role="button"]')).find(
+    const submit = Array.from(
+      composer.querySelectorAll<HTMLElement>('button, [role="button"]'),
+    ).find(
       (candidate) =>
         !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
         isVisible(candidate) &&
-        matchesReplyActionText(
-          candidate.getAttribute('aria-label') ?? candidate.textContent,
-        ),
+        matchesReplyActionText(candidate.getAttribute('aria-label') ?? candidate.textContent),
     );
     if (submit) submit.insertAdjacentElement('beforebegin', wrap);
     else editor.insertAdjacentElement('afterend', wrap);
