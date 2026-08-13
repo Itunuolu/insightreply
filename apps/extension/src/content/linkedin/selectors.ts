@@ -111,6 +111,7 @@ export const POST_ID_ATTRIBUTE = 'data-insightreply-id';
 
 /** Candidate containers for one LinkedIn comment or reply. */
 export const COMMENT_CONTAINER_SELECTORS: string[] = [
+  '[data-insightreply-comment-scope]',
   '.comments-comment-entity',
   '[data-testid="comment-entity"]',
   '[data-view-name="comment"]',
@@ -124,6 +125,7 @@ export const COMMENT_TEXT_SELECTORS: string[] = [
   '.comments-comment-item-content-body',
   '[data-testid="comment-text"]',
   '[data-view-name="comment-text"]',
+  'div[dir="ltr"]',
   '.update-components-text',
 ];
 
@@ -138,11 +140,17 @@ export const COMMENT_AUTHOR_SELECTORS: string[] = [
 
 /** LinkedIn controls that open a reply editor for a specific comment. */
 export const REPLY_ACTION_SELECTORS: string[] = [
+  '.comments-comment-social-bar__reply-action-button',
   'button[aria-label="Reply" i]',
   'button[aria-label^="Reply to" i]',
+  'button[aria-label*="reply" i]',
+  '[role="button"][aria-label*="reply" i]',
   '[data-control-name="reply_comment"]',
   '[data-testid="reply-button"]',
   '[data-view-name="comment-reply-action"]',
+  '[data-view-name*="comment-reply" i]',
+  'button:has(svg[data-test-icon^="comment" i])',
+  '[role="button"]:has(svg[data-test-icon^="comment" i])',
 ];
 
 /** Reply editors. These are searched inside the selected comment/thread scope. */
@@ -152,10 +160,12 @@ export const REPLY_EDITOR_SELECTORS: string[] = [
   'div[contenteditable="true"][role="textbox"][aria-label*="reply" i]',
   '.comments-comment-box__form .ql-editor',
   'form [contenteditable="true"][data-placeholder*="reply" i]',
+  'div[contenteditable="true"][role="textbox"]',
 ];
 
 export const REPLY_MOUNTED_ATTRIBUTE = 'data-insightreply-reply-mounted';
 export const REPLY_TARGET_ATTRIBUTE = 'data-insightreply-reply-target';
+export const DYNAMIC_COMMENT_ATTRIBUTE = 'data-insightreply-comment-scope';
 
 export function matchesReplyActionText(raw: string | null | undefined): boolean {
   return /^reply$/i.test((raw ?? '').replace(/[^\p{L}]+/gu, ''));

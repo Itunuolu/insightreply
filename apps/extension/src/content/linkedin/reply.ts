@@ -5,6 +5,7 @@ import {
   COMMENT_AUTHOR_SELECTORS,
   COMMENT_CONTAINER_SELECTORS,
   COMMENT_TEXT_SELECTORS,
+  DYNAMIC_COMMENT_ATTRIBUTE,
   OWN_ELEMENT_CLASS,
   REPLY_ACTION_SELECTORS,
   REPLY_EDITOR_SELECTORS,
@@ -22,6 +23,22 @@ const replyLocators = new Map<
 >();
 
 const COMMENT_CONTAINER_SELECTOR = COMMENT_CONTAINER_SELECTORS.join(',');
+const REPLY_ACTION_SELECTOR = REPLY_ACTION_SELECTORS.join(',');
+const REPLY_EDITOR_SELECTOR = REPLY_EDITOR_SELECTORS.join(',');
+
+function isEditorElement(element: Element): boolean {
+  return element.matches(REPLY_EDITOR_SELECTOR) || Boolean(element.closest(REPLY_EDITOR_SELECTOR));
+}
+
+function looksLikeReplySubmit(element: HTMLElement): boolean {
+  if (element.closest('form, [data-testid="ui-core-tiptap-text-editor-wrapper"]')) return true;
+  const style = window.getComputedStyle(element);
+  const rect = element.getBoundingClientRect();
+  return (
+    matchesReplyActionText(element.textContent) &&
+    (style.borderRadius === '9999px' || rect.width >= 64 || element.className.includes('submit'))
+  );
+}
 
 function belongsToComment(element: Element, container: HTMLElement): boolean {
   return element.closest<HTMLElement>(COMMENT_CONTAINER_SELECTOR) === container;
@@ -59,7 +76,44 @@ export function findCommentContainers(root: ParentNode = document): HTMLElement[
       }
     }
   }
+  for (const action of root.querySelectorAll<HTMLElement>(REPLY_ACTION_SELECTOR)) {
+    if (
+      action.classList.contains(OWN_ELEMENT_CLASS) ||
+      !isVisible(action) ||
+      isEditorElement(action) ||
+      looksLikeReplySubmit(action)
+    ) {
+      continue;
+    }
+    const container = deriveCommentContainer(action);
+    if (container && !seen.has(container)) {
+      container.setAttribute(DYNAMIC_COMMENT_ATTRIBUTE, 'true');
+      seen.add(container);
+      comments.push(container);
+    }
+  }
   return comments;
+}
+
+function deriveCommentContainer(action: HTMLElement): HTMLElement | null {
+  const known = action.closest<HTMLElement>(COMMENT_CONTAINER_SELECTOR);
+  if (known) return known;
+  const post = findPostContainers().find((container) => container.contains(action));
+  if (!post) return null;
+
+  let candidate = action.parentElement;
+  while (candidate && candidate !== post) {
+    const profileLinks = Array.from(
+      candidate.querySelectorAll<HTMLAnchorElement>('a[href*="/in/"]'),
+    );
+    const hasAuthor = profileLinks.some((link) => !isEditorElement(link));
+    const editor = Array.from(candidate.querySelectorAll<HTMLElement>(REPLY_EDITOR_SELECTOR)).find(
+      (element) => isVisible(element),
+    );
+    if (hasAuthor && editor && candidate.contains(editor)) return candidate;
+    candidate = candidate.parentElement;
+  }
+  return null;
 }
 
 export function extractCommentText(container: HTMLElement): string {
@@ -90,7 +144,13 @@ function findReplyAction(container: HTMLElement): HTMLElement | null {
     const candidate = Array.from(container.querySelectorAll<HTMLElement>(selector)).find(
       (element) => belongsToComment(element, container),
     );
-    if (candidate && !candidate.classList.contains(OWN_ELEMENT_CLASS) && isVisible(candidate)) {
+    if (
+      candidate &&
+      !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
+      !isEditorElement(candidate) &&
+      !looksLikeReplySubmit(candidate) &&
+      isVisible(candidate)
+    ) {
       return candidate;
     }
   }
@@ -99,6 +159,8 @@ function findReplyAction(container: HTMLElement): HTMLElement | null {
       !candidate.classList.contains(OWN_ELEMENT_CLASS) &&
       belongsToComment(candidate, container) &&
       matchesReplyActionText(candidate.textContent) &&
+      !isEditorElement(candidate) &&
+      !looksLikeReplySubmit(candidate) &&
       isVisible(candidate),
   ) ?? null;
 }
@@ -173,14 +235,17 @@ function findParentComment(container: HTMLElement): HTMLElement | null {
   return index > 0 ? comments[index - 1] ?? null : null;
 }
 
-/**
- * The reply affordance belongs on a response inside a comment thread, not on
- * the user's root comment. Requiring a comment ancestor prevents a confusing
- * self-reply action and keeps the injected UI scoped to directed replies.
- */
 function isNestedReply(container: HTMLElement): boolean {
   const parent = container.parentElement?.closest<HTMLElement>(COMMENT_CONTAINER_SELECTOR);
   return Boolean(parent && parent !== container);
+}
+
+function findOwnReplyWrap(container: HTMLElement): HTMLElement | null {
+  return (
+    Array.from(container.querySelectorAll<HTMLElement>('.insightreply-reply-wrap')).find(
+      (element) => belongsToComment(element, container),
+    ) ?? null
+  );
 }
 
 export function extractReplySelection(container: HTMLElement): SelectedPost | null {
@@ -241,8 +306,14 @@ function createReplyButton(): HTMLButtonElement {
 }
 
 export function injectReplyButton(container: HTMLElement): void {
+  const nested = isNestedReply(container);
+  const hasOpenEditor = Boolean(findReplyEditor(container));
+  if (!nested && !hasOpenEditor) {
+    findOwnReplyWrap(container)?.remove();
+    container.removeAttribute(REPLY_MOUNTED_ATTRIBUTE);
+    return;
+  }
   if (container.hasAttribute(REPLY_MOUNTED_ATTRIBUTE)) return;
-  if (!isNestedReply(container)) return;
   const replyAction = findReplyAction(container);
   if (!replyAction) return;
 

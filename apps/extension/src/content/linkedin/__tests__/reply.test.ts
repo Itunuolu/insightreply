@@ -11,6 +11,7 @@ import {
 } from '../reply.js';
 import {
   FEED_CONTAINER,
+  POST_WITH_MODERN_ICON_REPLY_COMPOSER,
   POST_WITH_MULTIPLE_REPLY_THREADS,
   POST_WITH_REPLY_THREAD,
 } from '../../../test/fixtures.js';
@@ -49,14 +50,66 @@ describe('reply discovery and extraction', () => {
     });
     expect(resolveReplyTarget('urn:li:comment:incoming_1')).toBe(incoming);
   });
+
+  it('discovers the modern icon-only comment layout without stable comment classes', () => {
+    const root = FEED_CONTAINER(POST_WITH_MODERN_ICON_REPLY_COMPOSER);
+    const comments = findCommentContainers(root);
+    expect(comments).toHaveLength(1);
+    const comment = comments[0]!;
+    expect(extractCommentAuthor(comment)).toBe('Itunuoluwa Akinkugbe');
+    expect(extractCommentText(comment)).toBe(
+      'One subtle point worth adding: API awareness improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.',
+    );
+
+    injectReplyButton(comment);
+    const button = comment.querySelector('.insightreply-reply-button');
+    expect(button).not.toBeNull();
+    expect(button?.parentElement?.previousElementSibling?.getAttribute('aria-label')).toContain(
+      'Reply to',
+    );
+    expect(comment.querySelector('.hashed-reply-submit + .insightreply-reply-wrap')).toBeNull();
+
+    expect(extractReplySelection(comment)).toMatchObject({
+      authorName: 'Product Founder',
+      replyContext: {
+        authorName: 'Itunuoluwa Akinkugbe',
+        text: 'One subtle point worth adding: API awareness improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.',
+      },
+    });
+  });
 });
 
 describe('AI Reply button', () => {
-  it('does not add a self-reply action to the root comment', () => {
+  it('does not add a root-comment action until its reply editor is open', () => {
     const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
     const parent = root.querySelector('[data-urn="urn:li:comment:user_1"]') as HTMLElement;
     injectReplyButton(parent);
     expect(parent.querySelector(':scope > .insightreply-reply-wrap')).toBeNull();
+  });
+
+  it('adds a root-comment action while its reply editor is open and removes it when closed', () => {
+    const root = FEED_CONTAINER(POST_WITH_REPLY_THREAD);
+    const parent = root.querySelector('[data-urn="urn:li:comment:user_1"]') as HTMLElement;
+    const form = document.createElement('div');
+    form.className = 'comments-comment-box__form';
+    form.innerHTML =
+      '<div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply"></div>';
+    parent.appendChild(form);
+
+    injectReplyButton(parent);
+    expect(
+      Array.from(parent.querySelectorAll('.insightreply-reply-wrap')).filter(
+        (element) => element.closest('[data-urn^="urn:li:comment"]') === parent,
+      ),
+    ).toHaveLength(1);
+
+    form.remove();
+    injectReplyButton(parent);
+    expect(
+      Array.from(parent.querySelectorAll('.insightreply-reply-wrap')).filter(
+        (element) => element.closest('[data-urn^="urn:li:comment"]') === parent,
+      ),
+    ).toHaveLength(0);
   });
 
   it('injects exactly one button beside a LinkedIn Reply action', () => {

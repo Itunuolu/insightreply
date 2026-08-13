@@ -242,6 +242,37 @@ export const POST_WITH_MULTIPLE_REPLY_THREADS = `
 </div>
 `;
 
+/**
+ * LinkedIn's newer icon-only comment UI has no stable comment entity class or
+ * comment URN. The open reply composer includes a plain contenteditable and a
+ * blue submit button whose visible text is also "Reply".
+ */
+export const POST_WITH_MODERN_ICON_REPLY_COMPOSER = `
+<div role="listitem" data-view-name="feed-full-update">
+  <a href="/in/founder"><span dir="auto">Product Founder</span></a>
+  <div data-testid="expandable-text-box">API awareness improves product decisions.</div>
+  <div data-view-name="feed-social-actions"><button aria-label="Comment">Comment</button></div>
+  <section class="hashed-comments-region">
+    <div class="hashed-comment-layout">
+      <a href="/in/itunuoluwa"><span dir="auto">Itunuoluwa Akinkugbe</span></a>
+      <div class="hashed-comment-subtitle">Senior Business Analyst | Digital Transformation</div>
+      <div class="hashed-comment-copy" dir="ltr">
+        One subtle point worth adding: API awareness improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.
+      </div>
+      <div class="hashed-comment-actions">
+        <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
+        <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
+      </div>
+      <div class="hashed-reply-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
+        <a href="/in/current-user"><span dir="auto">Current user</span></a>
+        <div contenteditable="true" role="textbox"><p>Itunuoluwa Akinkugbe</p></div>
+        <button class="hashed-reply-submit" type="button">Reply</button>
+      </div>
+    </div>
+  </section>
+</div>
+`;
+
 export const FEED_CONTAINER = (innerHtml: string): HTMLElement => {
   const wrapper = document.createElement('div');
   wrapper.innerHTML = innerHtml;

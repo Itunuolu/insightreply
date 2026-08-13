@@ -11,6 +11,7 @@ import {
   resolveReplyTarget,
   waitForReplyEditor,
 } from './linkedin/reply.js';
+import { REPLY_EDITOR_SELECTORS } from './linkedin/selectors.js';
 
 let initialized = false;
 
@@ -45,6 +46,9 @@ const FEED_FRAGMENT_MARKERS = [
   '.comments-comment-entity',
   '[data-testid="comment-entity"]',
   '[data-view-name="comment"]',
+  '.comments-comment-box__form',
+  '[data-testid="ui-core-tiptap-text-editor-wrapper"]',
+  ...REPLY_EDITOR_SELECTORS,
   '[data-urn^="urn:li:activity"]',
   '[data-id^="urn:li:activity"]',
   '.scaffold-layout',
@@ -72,7 +76,9 @@ export function observeNewPosts(root: ParentNode = document): void {
   const observer = new MutationObserver((mutations) => {
     const needsScan = mutations.some((mutation) => {
       if (mutation.type !== 'childList') return false;
-      return Array.from(mutation.addedNodes).some(mutationNeedsScan);
+      return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)].some(
+        mutationNeedsScan,
+      );
     });
     if (needsScan) scheduleScan();
   });

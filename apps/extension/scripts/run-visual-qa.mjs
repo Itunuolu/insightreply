@@ -192,15 +192,18 @@ const fixture = `<!doctype html>
       .meta { font-size: 12px; color: #666; }
       .feed-shared-inline-show-more-text { font-size: 15px; line-height: 1.45; margin: 16px 0; }
       .feed-shared-social-actions { border-top: 1px solid #eee; border-bottom: 1px solid #eee; padding: 8px 0; }
-      .feed-shared-social-actions button, .comments-comment-entity > button { border: 0; background: none; color: #666; font-weight: 600; cursor: pointer; padding: 6px 8px; }
-      .comments-thread { margin-top: 16px; }
-      .comments-comment-entity { position: relative; margin: 12px 0 0 34px; }
+      .feed-shared-social-actions button, .modern-actions button { border: 0; background: none; color: #666; font-weight: 600; cursor: pointer; padding: 6px 8px; }
+      .modern-comments { margin-top: 16px; }
+      .modern-comment { position: relative; margin: 12px 0 0 34px; }
       .comment-bubble { background: #f2f2f2; border-radius: 0 10px 10px 10px; padding: 10px 12px; }
-      .comments-comment-entity .comments-comment-entity { margin-left: 34px; }
-      .comments-post-meta__name-text { font-weight: 700; font-size: 13px; }
-      .comments-comment-item__main-content { font-size: 14px; line-height: 1.4; margin-top: 3px; }
-      .comments-comment-box__form { margin: 8px 0; }
-      .ql-editor { min-height: 38px; border: 1px solid #999; border-radius: 18px; padding: 9px 14px; background: white; }
+      .modern-author { font-weight: 700; font-size: 13px; }
+      .modern-subtitle { color: #666; font-size: 12px; margin-top: 2px; }
+      .modern-copy { font-size: 14px; line-height: 1.4; margin-top: 5px; }
+      .modern-actions { display: flex; align-items: center; gap: 4px; margin-top: 4px; }
+      .modern-actions svg { width: 18px; height: 18px; border: 2px solid currentColor; border-radius: 6px; }
+      .modern-composer { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+      .modern-editor { flex: 1; min-height: 44px; border: 1px solid #999; border-radius: 24px; padding: 11px 14px; background: white; }
+      .modern-submit { border: 0; border-radius: 22px; background: #0a66c2; color: white; font-weight: 700; padding: 11px 18px; }
     </style>
   </head>
   <body>
@@ -210,16 +213,22 @@ const fixture = `<!doctype html>
         <div class="actor"><div class="avatar"></div><div><span class="update-components-actor__name">Ada Lovelace</span><div class="meta">Founder - 2h</div></div></div>
         <div class="feed-shared-inline-show-more-text"><span class="update-components-text">Good product discovery changes what a team decides not to build.</span></div>
         <div class="feed-shared-social-actions"><button aria-label="Like">Like</button><button aria-label="Comment">Comment</button><button aria-label="Repost">Repost</button></div>
-        <div class="comments-thread" data-testid="comment-thread">
-          <article class="comments-comment-entity" data-urn="urn:li:comment:user_1">
-            <div class="comment-bubble"><span class="comments-post-meta__name-text">You</span><div class="comments-comment-item__main-content">The strongest signal is often the feature customers never ask for twice.</div></div>
-            <button aria-label="Reply">Reply</button>
-            <article class="comments-comment-entity" data-urn="urn:li:comment:incoming_1">
-              <div class="comment-bubble"><span class="comments-post-meta__name-text">Grace Hopper</span><div class="comments-comment-item__main-content">How do you separate a weak request from an unmet need?</div></div>
-              <button aria-label="Reply to Grace Hopper">Reply</button>
-              <div class="comments-comment-box__form"><div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply to Grace Hopper"></div></div>
-            </article>
-          </article>
+        <div class="modern-comments">
+          <div class="modern-comment" data-comment-id="modern-user-comment">
+            <div class="comment-bubble">
+              <a href="/in/itunuoluwa"><span class="modern-author" dir="auto">Itunuoluwa Akinkugbe</span></a>
+              <div class="modern-subtitle">Senior Business Analyst | Digital Transformation</div>
+              <div class="modern-copy" dir="ltr">One subtle point worth adding: API awareness also improves user story quality because it pushes BAs to think in terms of events and contracts, not just features.</div>
+            </div>
+            <div class="modern-actions">
+              <button aria-label="React to comment"><svg data-test-icon="thumbs-up-small"></svg></button>
+              <button aria-label="Reply to Itunuoluwa Akinkugbe's comment"><svg data-test-icon="comment-small"></svg></button>
+            </div>
+            <div class="modern-composer" data-testid="ui-core-tiptap-text-editor-wrapper">
+              <div class="modern-editor" contenteditable="true" role="textbox"><p>Itunuoluwa Akinkugbe</p></div>
+              <button class="modern-submit" type="button">Reply</button>
+            </div>
+          </div>
         </div>
       </div>
     </main>
@@ -252,6 +261,12 @@ audits.linkedin = await linkedin.evaluate(() => {
   return {
     buttonCount: buttons.length,
     buttons,
+    owners: Array.from(
+      document.querySelectorAll('button.insightreply-reply-button'),
+    ).map(
+      (element) =>
+        element.closest('[data-insightreply-comment-scope]')?.getAttribute('data-comment-id') ?? null,
+    ),
     corruptText: suspiciousCodePoints.some((value) =>
       document.body.innerText.includes(value),
     ),

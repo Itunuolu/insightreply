@@ -8,6 +8,7 @@ import {
   FEED_POST_CLASSIC,
   FE_POST_TESTDATA,
   POST_WITH_OPEN_EDITOR,
+  POST_WITH_MODERN_ICON_REPLY_COMPOSER,
   POST_WITH_REPLY_THREAD,
   TRUNCATED_POST,
 } from '../../src/test/fixtures.js';
@@ -107,6 +108,7 @@ test.describe('InsightReply extension smoke test', () => {
       TRUNCATED_POST,
       POST_WITH_OPEN_EDITOR,
       POST_WITH_REPLY_THREAD,
+      POST_WITH_MODERN_ICON_REPLY_COMPOSER,
     ].join('\n');
     // Navigate (not setContent) so the init scripts run in this document.
     await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(`<main>${fixture}</main>`)}`);
@@ -118,11 +120,30 @@ test.describe('InsightReply extension smoke test', () => {
           page.locator('button.insightreply-button:not(.insightreply-reply-button)').count(),
         { timeout: 5_000 },
       )
-      .toBe(6);
+      .toBe(7);
 
     await expect
       .poll(async () => page.locator('button.insightreply-reply-button').count(), { timeout: 5_000 })
-      .toBe(1);
+      .toBe(2);
+
+    // Opening a top-level LinkedIn reply composer exposes AI Reply for that
+    // composer, without showing a persistent self-reply action beforehand.
+    await page.evaluate(() => {
+      const parent = document.querySelector('[data-urn="urn:li:comment:user_1"]');
+      const form = document.createElement('div');
+      form.className = 'comments-comment-box__form root-reply-editor';
+      form.innerHTML =
+        '<div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply"></div>';
+      parent?.appendChild(form);
+    });
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), { timeout: 5_000 })
+      .toBe(3);
+
+    await page.locator('.root-reply-editor').evaluate((element) => element.remove());
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), { timeout: 5_000 })
+      .toBe(2);
 
     // 2. No post content is transmitted before a click.
     const messagesBefore = await page.evaluate(() => (window as unknown as { __irBridge: { messages: unknown[] } }).__irBridge.messages.length);
@@ -145,7 +166,28 @@ test.describe('InsightReply extension smoke test', () => {
     expect(selectMessage?.post?.authorName).toBe('Ada Lovelace');
     expect(selectMessage?.post?.postText).toContain('analytics dashboard');
 
-    // 4. Truncated post shows the guidance toast and is not selected.
+    // 4. The icon-only LinkedIn layout selects the correct comment, not the
+    // blue Reply submit button inside the open composer.
+    const modernReplyButton = page.locator(
+      '.hashed-comment-layout button.insightreply-reply-button',
+    );
+    await expect(modernReplyButton).toHaveCount(1);
+    await modernReplyButton.click();
+    const modernSelection = await page.evaluate(
+      () =>
+        (window as unknown as {
+          __irBridge: {
+            messages: {
+              post?: { replyContext?: { authorName?: string; text?: string } };
+            }[];
+          };
+        }).__irBridge.messages.find(
+          (message) => message.post?.replyContext?.authorName === 'Itunuoluwa Akinkugbe',
+        ),
+    );
+    expect(modernSelection?.post?.replyContext?.text).toContain('API awareness improves');
+
+    // 5. Truncated post shows the guidance toast and is not selected.
     await page.evaluate(() => {
       const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.insightreply-button'));
       const truncated = document.querySelector('[data-id="urn:li:activity:112233"]');
@@ -154,7 +196,7 @@ test.describe('InsightReply extension smoke test', () => {
     });
     await expect(page.locator('.insightreply-toast')).toContainText('Expand the post first');
 
-    // 5. Insertion flows through the content-script message listener.
+    // 6. Insertion flows through the content-script message listener.
     const insertResult = await page.evaluate(async () => {
       const bridge = (window as unknown as { __irBridge: { listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown } }).__irBridge;
       return new Promise((resolve) => {
@@ -169,7 +211,7 @@ test.describe('InsightReply extension smoke test', () => {
     const editorText = await page.locator('[data-urn="urn:li:activity:editor_1"] .ql-editor').textContent();
     expect(editorText).toBe('Browser-level insertion test.');
 
-    // 6. Selecting and inserting a reply stays scoped to the targeted comment thread.
+    // 7. Selecting and inserting a reply stays scoped to the targeted comment thread.
     await page
       .locator('[data-urn="urn:li:comment:incoming_1"] button.insightreply-reply-button')
       .click();
