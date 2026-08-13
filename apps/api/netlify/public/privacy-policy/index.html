@@ -49,18 +49,26 @@
     <main>
       <p><a href="/">← InsightReply</a></p>
       <h1>Privacy Policy</h1>
-      <p class="updated">InsightReply by Hadesh.ai · Last updated August 8, 2026</p>
+      <p class="updated">InsightReply by Hadesh.ai · Last updated August 12, 2026</p>
       <p>
-        InsightReply is a user-controlled writing assistant for drafting LinkedIn comments. It never
-        publishes comments automatically or acts on the user's behalf without an explicit action.
+        InsightReply is a user-controlled writing assistant for drafting LinkedIn comments and
+        replies. It never publishes content automatically or acts on the user's behalf without an
+        explicit action.
       </p>
 
       <h2>How InsightReply works</h2>
       <ol>
-        <li>InsightReply adds an “AI Comment” button to LinkedIn posts.</li>
+        <li>
+          InsightReply adds an “AI Comment” button to LinkedIn posts and an “AI Reply” button beside
+          visible comment-thread reply actions.
+        </li>
         <li>
           When the user selects a post, the extension reads that post's author display name, text,
           and URL.
+        </li>
+        <li>
+          When the user selects a reply, the extension also reads the selected visible reply and,
+          when available, the parent comment needed to understand the conversation.
         </li>
         <li>
           When the user presses Generate, that selected content and the user's writing preferences
@@ -77,7 +85,8 @@
       <ul>
         <li>
           <strong>Selected website content:</strong> the selected post's author display name, text,
-          and URL.
+          and URL and, for reply suggestions, the selected visible reply and available parent
+          comment context.
         </li>
         <li>
           <strong>Writing preferences:</strong> tone, length, language, perspective, and an optional
@@ -98,10 +107,10 @@
 
       <h2>Use and sharing</h2>
       <p>
-        Selected post content and writing preferences are used only to provide requested comment
-        suggestions. They are transmitted to the configured backend and its AI provider for that
-        purpose. Hadesh.ai does not sell this data or share it with advertisers. No third-party
-        analytics are embedded in the extension.
+        Selected conversation content and writing preferences are used only to provide requested
+        comment or reply suggestions. They are transmitted to the configured backend and its AI
+        provider for that purpose. Hadesh.ai does not sell this data or share it with advertisers.
+        No third-party analytics are embedded in the extension.
       </p>
 
       <h2>Storage and retention</h2>
@@ -114,7 +123,7 @@
 
       <h2>User controls</h2>
       <ul>
-        <li>Clear Selected Post removes the current post from session storage.</li>
+        <li>Clear Selected Post removes the current post or reply context from session storage.</li>
         <li>Clear Settings resets stored extension preferences.</li>
         <li>Removing the extension removes its extension-scoped browser data.</li>
         <li>Users should avoid selecting confidential information for AI processing.</li>
@@ -122,7 +131,7 @@
 
       <h2>What InsightReply does not do</h2>
       <ul>
-        <li>It does not automatically publish comments.</li>
+        <li>It does not automatically publish comments or replies.</li>
         <li>
           It does not collect LinkedIn passwords, cookies, private messages, connections, or profile
           history.

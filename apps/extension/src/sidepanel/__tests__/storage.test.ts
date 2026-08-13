@@ -7,6 +7,7 @@ import {
   watchSelectedPost,
 } from '../lib/storage.js';
 import { DEFAULT_SETTINGS } from '@insightreply/shared';
+import { DEFAULT_BACKEND_URL } from '../lib/config.js';
 
 describe('settings persistence', () => {
   it('loads defaults when nothing is stored', async () => {
@@ -28,10 +29,36 @@ describe('settings persistence', () => {
     expect(settings.defaultTone).toBe(DEFAULT_SETTINGS.defaultTone);
   });
 
+  it('migrates the former official Netlify backend to this build default', async () => {
+    await chrome.storage.sync.set({
+      insightReplySettings: {
+        ...DEFAULT_SETTINGS,
+        backendUrl: 'https://insightreply-api.netlify.app/',
+      },
+    });
+
+    const settings = await loadSettings();
+    expect(settings.backendUrl).toBe(DEFAULT_BACKEND_URL);
+    expect(
+      (await chrome.storage.sync.get('insightReplySettings')).insightReplySettings,
+    ).toMatchObject({
+      backendUrl: DEFAULT_BACKEND_URL,
+    });
+  });
+
+  it('preserves a user-configured custom backend', async () => {
+    await chrome.storage.sync.set({
+      insightReplySettings: {
+        ...DEFAULT_SETTINGS,
+        backendUrl: 'https://custom-api.example.com',
+      },
+    });
+
+    expect((await loadSettings()).backendUrl).toBe('https://custom-api.example.com');
+  });
+
   it('rejects invalid settings at save time', async () => {
-    await expect(
-      saveSettings({ ...DEFAULT_SETTINGS, backendUrl: 'not-a-url' }),
-    ).rejects.toThrow();
+    await expect(saveSettings({ ...DEFAULT_SETTINGS, backendUrl: 'not-a-url' })).rejects.toThrow();
   });
 });
 

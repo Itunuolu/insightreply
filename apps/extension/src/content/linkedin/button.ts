@@ -22,8 +22,7 @@ export function injectActionButton(container: HTMLElement): void {
   if (anchor) {
     const row = document.createElement('div');
     row.className = 'insightreply-row';
-    row.style.cssText =
-      'display:flex;justify-content:flex-end;padding:8px 16px;margin-top:-4px;';
+    row.style.cssText = 'display:flex;justify-content:flex-end;padding:8px 16px;margin-top:-4px;';
     row.appendChild(button);
     anchor.parentElement?.insertBefore(row, anchor.nextSibling);
   } else {
@@ -76,8 +75,8 @@ function createActionButton(): HTMLButtonElement {
 }
 
 /**
- * Extracts the selected post (user-initiated only), stores it through the
- * service worker and opens the side panel. Never runs in the background.
+ * Extracts the selected post (user-initiated only) and stores it through the
+ * service worker. The service worker may also open the panel when needed.
  */
 export async function handleButtonClick(
   container: HTMLElement,
@@ -93,12 +92,9 @@ export async function handleButtonClick(
 
   button.setAttribute('disabled', 'true');
   try {
-    const opened = await dispatchSelection(result.post);
-    if (!opened) {
-      showToast('Post selected. Open InsightReply from the toolbar icon to continue.');
-    }
+    await dispatchSelection(result.post);
   } catch {
-    showToast('Could not open the side panel. Click the InsightReply toolbar icon instead.');
+    showToast('InsightReply could not select this post. Reload LinkedIn and try again.');
   } finally {
     button.removeAttribute('disabled');
   }
@@ -126,21 +122,16 @@ async function notifyBackgroundOfSelectionFailure(code: string): Promise<void> {
 }
 
 /**
- * Tells the service worker a post was selected; it stores it and opens the
- * panel. Resolves to whether the side panel actually opened — storing the
- * selection can succeed even when Chrome refuses to open the panel.
+ * Tells the service worker to validate and store the selected conversation.
  */
-async function dispatchSelection(post: SelectedPost): Promise<boolean> {
+export async function dispatchSelection(post: SelectedPost): Promise<void> {
   const response: unknown = await chrome.runtime.sendMessage({ type: 'IR_SELECT_POST', post });
-  if (
-    response &&
-    typeof response === 'object' &&
-    'ok' in response &&
-    (response as { ok?: boolean }).ok === false
-  ) {
+  if (!response || typeof response !== 'object' || !('ok' in response)) {
+    throw new Error('InsightReply did not confirm the selection.');
+  }
+  if ((response as { ok?: boolean }).ok !== true) {
     throw new Error((response as { message?: string }).message ?? 'Selection could not be stored.');
   }
-  return (response as { opened?: boolean } | undefined)?.opened !== false;
 }
 
 export function showToast(message: string): void {
@@ -176,6 +167,7 @@ function ensureStyles(): void {
   style.id = 'insightreply-style';
   style.textContent = `
     .insightreply-button:hover { opacity:.92; }
+    .insightreply-button:disabled { opacity:.6; cursor:wait; }
     .insightreply-button:focus-visible {
       outline:2px solid #e8c95e;
       outline-offset:2px;

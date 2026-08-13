@@ -14,20 +14,22 @@ Work through this list before submitting InsightReply for review.
 - [ ] Load the unpacked build in a clean Chrome profile and verify:
   - [ ] No manifest errors on `chrome://extensions`
   - [ ] `✨ AI Comment` button appears on feed posts
+  - [ ] `✨ AI Reply` appears beside Reply actions in expanded comment threads
   - [ ] Side panel opens from the toolbar icon and from the button
   - [ ] Generate → 3 suggestions → edit → copy → insert → manual review → manual post
   - [ ] Truncated post shows the expand-first notice
   - [ ] Replace/Append/Cancel flow works with pre-filled editor text
+  - [ ] A reply suggestion inserts into the selected reply editor, never a sibling thread
 
 ## 1b. Backend readiness (do this BEFORE uploading)
 
 The extension is useless without a reachable backend, and a reviewer cannot run
 `pnpm dev`. Work through this in order:
 
-- [ ] Deploy `apps/api` somewhere with HTTPS (Railway, Render, Fly.io, a VPS) and confirm `GET /health`
+- [ ] Deploy the monorepo root to Vercel and confirm `GET https://insightreply-api.vercel.app/health`
 - [ ] Build the store package against that URL — the default is baked in at build time:
       ```bash
-      IR_DEFAULT_BACKEND_URL=https://your-backend.example.com pnpm build:extension && pnpm package:extension
+      IR_DEFAULT_BACKEND_URL=https://insightreply-api.vercel.app pnpm build:extension && pnpm package:extension
       ```
       The build refuses any non-HTTPS URL other than localhost, so a dev default cannot ship by accident.
 - [ ] Confirm the zip's default is right: users who never open Settings must still be able to generate
@@ -52,8 +54,8 @@ does not exist until after your first upload. Sequence:
 
 ## 2. Store listing content
 
-- [ ] **Name:** InsightReply — AI Comment Assistant (≤ 45 chars; avoid duplicate names)
-- [ ] **Short description** (≤ 132 chars) e.g. *"Write thoughtful, relevant LinkedIn comments from the posts you choose — you review and post everything yourself."*
+- [ ] **Name:** InsightReply — AI Comment & Reply Assistant (confirm the dashboard's current character limit)
+- [ ] **Short description** (≤ 132 chars) e.g. *"Write thoughtful LinkedIn comments and replies from conversations you choose — you review and post everything yourself."*
 - [ ] **Detailed description** (≤ 16,000 chars): what it does, how it works, user control emphasis, privacy summary, link to the privacy policy
 - [ ] **Screenshots** (1280×800, up to 5) — ready to upload in order from `assets/store/`:
   1. `screenshot-01-select.png` — the button on a post
@@ -73,9 +75,9 @@ does not exist until after your first upload. Sequence:
 ## 3. Privacy practice
 
 - [ ] Publish `docs/privacy-policy.md` at a stable URL and submit it in the Developer Dashboard
-- [ ] **Single purpose:** "generate draft comments for LinkedIn posts"
+- [ ] **Single purpose:** "generate draft comments and replies for LinkedIn conversations selected by the user"
 - [ ] **Data usage table** in the dashboard:
-  - [ ] *Post content the user selects* → transmitted for the sole purpose of generating suggestions → not stored
+  - [ ] *Conversation content the user selects (post and, when applicable, reply context)* → transmitted solely to generate suggestions → not stored in a database
   - [ ] *Settings* → stored in `chrome.storage.sync` (user's own profile)
   - [ ] *IP address* → rate limiting on the backend only
 - [ ] If you later add any analytics or telemetry, update the policy and the dashboard disclosure **before** shipping it

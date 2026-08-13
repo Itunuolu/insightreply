@@ -141,11 +141,17 @@ export class CommentGenerator {
       };
     }
 
-    const filtered = filterSuggestions(parsed.suggestions, request.post.text, {
+    const sourceText = request.reply
+      ? `${request.post.text}\n${request.reply.parentCommentText ?? ''}\n${request.reply.text}`
+      : request.post.text;
+    const filtered = filterSuggestions(parsed.suggestions, sourceText, {
       length: request.preferences.length,
       emojiPreference: request.preferences.emojiPreference,
       maxQuestionModeTone: request.preferences.tone === 'question_led' ? 'question_led' : 'none',
       allowHashtags: false,
+      reply: request.reply
+        ? { authorName: request.reply.authorName, text: request.reply.text }
+        : undefined,
     });
 
     if (filtered.length === 0) {
@@ -194,7 +200,7 @@ export class CommentGenerator {
     if (result.data.suggestions.length < suggestionCount) return null;
     return {
       postSummary: result.data.postSummary,
-      suggestions: result.data.suggestions,
+      suggestions: result.data.suggestions as SuggestionItem[],
     };
   }
 

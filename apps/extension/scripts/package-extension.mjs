@@ -15,6 +15,21 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SOURCE = join(ROOT, 'dist-extension');
 const OUT_DIR = join(ROOT, '..', '..', 'dist');
 const OUT_ZIP = join(OUT_DIR, 'insightreply-extension.zip');
+const CHROME_MANIFEST_DESCRIPTION_LIMIT = 132;
+
+function validateManifest() {
+  const manifestPath = join(SOURCE, 'manifest.json');
+  const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+  if (
+    typeof manifest.description !== 'string' ||
+    manifest.description.length > CHROME_MANIFEST_DESCRIPTION_LIMIT
+  ) {
+    const actualLength = typeof manifest.description === 'string' ? manifest.description.length : 0;
+    throw new Error(
+      `manifest description is ${actualLength} characters; Chrome Web Store allows at most ${CHROME_MANIFEST_DESCRIPTION_LIMIT}`,
+    );
+  }
+}
 
 function collectFiles(dir) {
   const files = [];
@@ -102,6 +117,7 @@ async function main() {
     throw new Error(`dist-extension missing — run \`pnpm build:extension\` first (${SOURCE})`);
   }
   mkdirSync(OUT_DIR, { recursive: true });
+  validateManifest();
   // `zip -r` UPDATES an existing archive rather than replacing it, so without
   // this every repackage kept the previous build's hashed bundles alongside the
   // new ones — dead weight in the upload, and a stale bundle can carry a

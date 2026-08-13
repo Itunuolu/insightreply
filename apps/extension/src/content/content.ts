@@ -3,6 +3,15 @@ import { parseMessage } from '@insightreply/shared';
 import { injectActionButton } from './linkedin/button.js';
 import { findPostContainers, resolvePostContainer } from './linkedin/adapter.js';
 import { insertComment, openCommentEditor, waitForCommentEditor } from './linkedin/insert.js';
+import {
+  findCommentContainers,
+  injectReplyButton,
+  insertReply,
+  openReplyEditor,
+  resolveReplyTarget,
+  waitForReplyEditor,
+} from './linkedin/reply.js';
+import { REPLY_EDITOR_SELECTORS } from './linkedin/selectors.js';
 
 let initialized = false;
 
@@ -13,6 +22,9 @@ let initialized = false;
 export function scanAndInject(root: ParentNode = document): void {
   for (const container of findPostContainers(root)) {
     injectActionButton(container);
+  }
+  for (const container of findCommentContainers(root)) {
+    injectReplyButton(container);
   }
 }
 
@@ -31,6 +43,12 @@ const FEED_FRAGMENT_MARKERS = [
   'div[role="listitem"]',
   '[data-view-name="feed-full-update"]',
   '.feed-shared-update-v2',
+  '.comments-comment-entity',
+  '[data-testid="comment-entity"]',
+  '[data-view-name="comment"]',
+  '.comments-comment-box__form',
+  '[data-testid="ui-core-tiptap-text-editor-wrapper"]',
+  ...REPLY_EDITOR_SELECTORS,
   '[data-urn^="urn:li:activity"]',
   '[data-id^="urn:li:activity"]',
   '.scaffold-layout',
@@ -58,7 +76,9 @@ export function observeNewPosts(root: ParentNode = document): void {
   const observer = new MutationObserver((mutations) => {
     const needsScan = mutations.some((mutation) => {
       if (mutation.type !== 'childList') return false;
-      return Array.from(mutation.addedNodes).some(mutationNeedsScan);
+      return [...Array.from(mutation.addedNodes), ...Array.from(mutation.removedNodes)].some(
+        mutationNeedsScan,
+      );
     });
     if (needsScan) scheduleScan();
   });
@@ -70,6 +90,28 @@ export function observeNewPosts(root: ParentNode = document): void {
 async function handleInsertRequest(
   message: Extract<RuntimeMessage, { type: 'IR_INSERT_COMMENT' }>,
 ): Promise<RuntimeResponse> {
+  if (message.replyTargetId) {
+    const target = resolveReplyTarget(message.replyTargetId);
+    if (!target) {
+      return {
+        ok: false,
+        code: 'REPLY_NOT_FOUND',
+        message: 'That LinkedIn reply is no longer on this page. Expand the thread and try again.',
+      };
+    }
+    openReplyEditor(target);
+    const replyEditor = await waitForReplyEditor(target);
+    if (!replyEditor) {
+      return {
+        ok: false,
+        code: 'REPLY_EDITOR_NOT_FOUND',
+        message: "Reply editor not found. Click LinkedIn's Reply action and try again.",
+      };
+    }
+    const result = insertReply(replyEditor, message.text, message.mode);
+    return { ok: true, inserted: true, hadExistingText: result.hadExistingText };
+  }
+
   const container = resolvePostContainer(message.postId);
   if (!container) {
     return {

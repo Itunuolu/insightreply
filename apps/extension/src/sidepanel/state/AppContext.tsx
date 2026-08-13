@@ -5,6 +5,7 @@ import {
   useEffect,
   useMemo,
   useReducer,
+  useRef,
   type ReactNode,
 } from 'react';
 import type {
@@ -16,11 +17,7 @@ import type {
 } from '@insightreply/shared';
 import { settingsSchema } from '@insightreply/shared';
 import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS } from '../lib/config.js';
-import {
-  generateComments,
-  regenerateSingleSuggestion,
-  type PanelError,
-} from '../lib/api.js';
+import { generateComments, regenerateSingleSuggestion, type PanelError } from '../lib/api.js';
 import {
   clearSelectedPost as clearStoredPost,
   loadSelectedPost,
@@ -76,8 +73,13 @@ type Action =
   | { type: 'SET_SELECTED_POST'; post: SelectedPost | null }
   | { type: 'SET_COMPOSE'; compose: Partial<Compose> }
   | { type: 'GENERATION_START' }
-  | { type: 'GENERATION_DONE'; result: GenerateCommentsResponse; drafts: CommentDraft[] }
-  | { type: 'GENERATION_ERROR'; error: PanelError }
+  | {
+      type: 'GENERATION_DONE';
+      result: GenerateCommentsResponse;
+      drafts: CommentDraft[];
+      conversationKey: string;
+    }
+  | { type: 'GENERATION_ERROR'; error: PanelError; conversationKey: string }
   | { type: 'SET_DRAFT'; id: string; text: string }
   | { type: 'REPLACE_DRAFT'; id: string; text: string }
   | { type: 'CLEAR_RESULTS' }
@@ -88,6 +90,16 @@ type Action =
 
 function buildDrafts(result: GenerateCommentsResponse): CommentDraft[] {
   return result.suggestions.map((s) => ({ id: s.id, tone: s.tone, text: s.text }));
+}
+
+function selectedConversationKey(post: SelectedPost | null): string | null {
+  if (!post) return null;
+  return [
+    post.postId,
+    post.replyContext?.targetId ?? '',
+    post.replyContext?.text ?? '',
+    post.replyContext ? '' : post.postText,
+  ].join('\u0000');
 }
 
 function initialState(settings: Settings): AppState {
@@ -130,11 +142,16 @@ function reducer(state: AppState, action: Action): AppState {
             },
       };
     case 'SET_SELECTED_POST':
+      if (selectedConversationKey(state.selectedPost) === selectedConversationKey(action.post)) {
+        return { ...state, selectedPost: action.post };
+      }
       return {
         ...state,
         selectedPost: action.post,
         generationStatus: 'idle',
         generationError: null,
+        result: null,
+        drafts: [],
       };
     case 'SET_COMPOSE':
       return {
@@ -148,6 +165,7 @@ function reducer(state: AppState, action: Action): AppState {
     case 'GENERATION_START':
       return { ...state, generationStatus: 'generating', generationError: null };
     case 'GENERATION_DONE':
+      if (selectedConversationKey(state.selectedPost) !== action.conversationKey) return state;
       return {
         ...state,
         generationStatus: 'idle',
@@ -156,20 +174,17 @@ function reducer(state: AppState, action: Action): AppState {
         drafts: action.drafts,
       };
     case 'GENERATION_ERROR':
+      if (selectedConversationKey(state.selectedPost) !== action.conversationKey) return state;
       return { ...state, generationStatus: 'error', generationError: action.error };
     case 'SET_DRAFT':
       return {
         ...state,
-        drafts: state.drafts.map((d) =>
-          d.id === action.id ? { ...d, text: action.text } : d,
-        ),
+        drafts: state.drafts.map((d) => (d.id === action.id ? { ...d, text: action.text } : d)),
       };
     case 'REPLACE_DRAFT':
       return {
         ...state,
-        drafts: state.drafts.map((d) =>
-          d.id === action.id ? { ...d, text: action.text } : d,
-        ),
+        drafts: state.drafts.map((d) => (d.id === action.id ? { ...d, text: action.text } : d)),
       };
     case 'CLEAR_RESULTS':
       return { ...state, result: null, drafts: [], generationStatus: 'idle' };
@@ -215,8 +230,17 @@ let toastSeq = 1;
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_SETTINGS, initialState);
+  const selectedPostRef = useRef<SelectedPost | null>(null);
 
   useEffect(() => {
+    selectedPostRef.current = state.selectedPost;
+  }, [state.selectedPost]);
+
+  useEffect(() => {
+    const panelPort =
+      typeof chrome.runtime.connect === 'function'
+        ? chrome.runtime.connect({ name: 'insightreply-sidepanel' })
+        : null;
     let disposed = false;
     void loadSettings().then((settings) => {
       if (!disposed) dispatch({ type: 'SET_SETTINGS', settings });
@@ -230,6 +254,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
       unsubscribe();
+      panelPort?.disconnect();
     };
   }, []);
 
@@ -239,14 +264,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
-  const showToast = useCallback(
-    (text: string, kind: ToastMessage['kind'] = 'info') => {
-      const toast: ToastMessage = { id: toastSeq++, kind, text };
-      dispatch({ type: 'PUSH_TOAST', toast });
-      window.setTimeout(() => dispatch({ type: 'DISMISS_TOAST', id: toast.id }), 4000);
-    },
-    [],
-  );
+  const showToast = useCallback((text: string, kind: ToastMessage['kind'] = 'info') => {
+    const toast: ToastMessage = { id: toastSeq++, kind, text };
+    dispatch({ type: 'PUSH_TOAST', toast });
+    window.setTimeout(() => dispatch({ type: 'DISMISS_TOAST', id: toast.id }), 4000);
+  }, []);
 
   const patchSettings = useCallback(
     async (patch: Partial<Settings>) => {
@@ -281,7 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const runGeneration = useCallback(async () => {
     const post = state.selectedPost ?? (await loadSelectedPost());
     if (!post) {
-      showToast('Select a post on LinkedIn first.', 'error');
+      showToast('Select a post or reply on LinkedIn first.', 'error');
       return;
     }
     if (post.truncated) {
@@ -289,14 +311,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    const conversationKey = selectedConversationKey(post);
+    if (!conversationKey) return;
     dispatch({ type: 'GENERATION_START' });
     try {
-      const result = await generateComments({ settings: state.settings, post, compose: state.compose });
-      dispatch({ type: 'GENERATION_DONE', result, drafts: buildDrafts(result) });
+      const result = await generateComments({
+        settings: state.settings,
+        post,
+        compose: state.compose,
+      });
+      dispatch({
+        type: 'GENERATION_DONE',
+        result,
+        drafts: buildDrafts(result),
+        conversationKey,
+      });
     } catch (err) {
       const error = asPanelError(err);
-      dispatch({ type: 'GENERATION_ERROR', error });
-      showToast(error.message, 'error');
+      dispatch({ type: 'GENERATION_ERROR', error, conversationKey });
+      if (selectedConversationKey(selectedPostRef.current) === conversationKey) {
+        showToast(error.message, 'error');
+      }
     }
   }, [state.selectedPost, state.settings, state.compose, showToast]);
 
@@ -306,7 +341,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!draft) return;
       const post = state.selectedPost ?? (await loadSelectedPost());
       if (!post) {
-        showToast('Select a post on LinkedIn first.', 'error');
+        showToast('Select a post or reply on LinkedIn first.', 'error');
         return;
       }
       showToast('Regenerating this suggestion…');
@@ -315,9 +350,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           settings: state.settings,
           post,
           compose: state.compose,
-          currentTexts: state.drafts
-            .filter((d) => d.id !== id)
-            .map((d) => d.text),
+          currentTexts: state.drafts.filter((d) => d.id !== id).map((d) => d.text),
         });
         if (fresh) {
           dispatch({ type: 'REPLACE_DRAFT', id, text: fresh.text });
@@ -368,7 +401,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (!draft || !draft.text.trim()) return;
       const post = state.selectedPost ?? (await loadSelectedPost());
       if (!post) {
-        showToast('Select a post on LinkedIn first.', 'error');
+        showToast('Select a post or reply on LinkedIn first.', 'error');
         return;
       }
 
@@ -376,6 +409,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const response: unknown = await chrome.runtime.sendMessage({
           type: 'IR_INSERT_COMMENT',
           postId: post.postId,
+          replyTargetId: post.replyContext?.targetId,
           text: draft.text,
           mode,
         });
@@ -392,7 +426,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         if (response.hadExistingText) {
           requestConfirm(
-            'The comment box already contains text. Replace it or append the suggestion?',
+            `The ${post.replyContext ? 'reply' : 'comment'} box already contains text. Replace it or append the suggestion?`,
             async (mode) => {
               const retry = await sendInsert(mode);
               if (!retry.ok) {
@@ -406,7 +440,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         showToast('Inserted — review it on LinkedIn before posting.');
       } catch {
-        showToast('Could not insert the comment. Open LinkedIn and try again.', 'error');
+        showToast(
+          `Could not insert the ${post.replyContext ? 'reply' : 'comment'}. Open LinkedIn and try again.`,
+          'error',
+        );
       }
     },
     [state.drafts, state.selectedPost, showToast, requestConfirm],

@@ -3,7 +3,17 @@ import { mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { FEED_POST_2026, FEED_POST_CLASSIC, FE_POST_TESTDATA, POST_WITH_OPEN_EDITOR, TRUNCATED_POST } from '../../src/test/fixtures.js';
+import {
+  FEED_POST_2026,
+  FEED_POST_CLASSIC,
+  FE_POST_TESTDATA,
+  POST_WITH_OPEN_EDITOR,
+  POST_WITH_MODERN_ICON_REPLY_COMPOSER,
+  POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
+  POST_WITH_NATIVE_WRAPPED_STANDALONE_ELLIPSIS_REPLY_COMPOSER,
+  POST_WITH_REPLY_THREAD,
+  TRUNCATED_POST,
+} from '../../src/test/fixtures.js';
 
 const EXTENSION_PATH = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'dist-extension');
 
@@ -33,10 +43,7 @@ async function launchWithExtension(): Promise<{ context: BrowserContext; extensi
   const userDataDir = mkdtempSync(join(tmpdir(), 'insightreply-smoke-'));
   const context = await chromium.launchPersistentContext(userDataDir, {
     headless: process.env.PLAYWRIGHT_HEADLESS === '1',
-    args: [
-      `--disable-extensions-except=${EXTENSION_PATH}`,
-      `--load-extension=${EXTENSION_PATH}`,
-    ],
+    args: [`--disable-extensions-except=${EXTENSION_PATH}`, `--load-extension=${EXTENSION_PATH}`],
   });
 
   let worker;
@@ -77,7 +84,7 @@ test.describe('InsightReply extension smoke test', () => {
     await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
     await expect(panel.getByText('InsightReply', { exact: true })).toBeVisible();
     await expect(panel.getByText('by Hadesh.ai')).toBeVisible();
-    await expect(panel.getByText('No post selected')).toBeVisible();
+    await expect(panel.getByText('No conversation selected')).toBeVisible();
 
     // The manifest is valid: service worker registered the panel behavior.
     const sw = context.serviceWorkers()[0];
@@ -99,17 +106,58 @@ test.describe('InsightReply extension smoke test', () => {
       FEED_POST_2026,
       TRUNCATED_POST,
       POST_WITH_OPEN_EDITOR,
+      POST_WITH_REPLY_THREAD,
+      POST_WITH_MODERN_ICON_REPLY_COMPOSER,
+      POST_WITH_MODERN_NESTED_REPLY_COMPOSER,
     ].join('\n');
     // Navigate (not setContent) so the init scripts run in this document.
-    await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(`<main>${fixture}</main>`)}`);
+    await page.goto(
+      `data:text/html;charset=utf-8,${encodeURIComponent(`<main>${fixture}</main>`)}`,
+    );
 
     // 1. Button injection, exactly one per eligible post (debounced scan).
     await expect
-      .poll(async () => page.locator('button.insightreply-button').count(), { timeout: 5_000 })
-      .toBe(5);
+      .poll(
+        async () =>
+          page.locator('button.insightreply-button:not(.insightreply-reply-button)').count(),
+        { timeout: 5_000 },
+      )
+      .toBe(8);
+
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), {
+        timeout: 5_000,
+      })
+      .toBe(3);
+
+    // Opening a top-level LinkedIn reply composer exposes AI Reply for that
+    // composer, without showing a persistent self-reply action beforehand.
+    await page.evaluate(() => {
+      const parent = document.querySelector('[data-urn="urn:li:comment:user_1"]');
+      const form = document.createElement('div');
+      form.className = 'comments-comment-box__form root-reply-editor';
+      form.innerHTML =
+        '<div class="ql-editor" contenteditable="true" role="textbox" aria-label="Reply"></div>';
+      parent?.appendChild(form);
+    });
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), {
+        timeout: 5_000,
+      })
+      .toBe(4);
+
+    await page.locator('.root-reply-editor').evaluate((element) => element.remove());
+    await expect
+      .poll(async () => page.locator('button.insightreply-reply-button').count(), {
+        timeout: 5_000,
+      })
+      .toBe(3);
 
     // 2. No post content is transmitted before a click.
-    const messagesBefore = await page.evaluate(() => (window as unknown as { __irBridge: { messages: unknown[] } }).__irBridge.messages.length);
+    const messagesBefore = await page.evaluate(
+      () =>
+        (window as unknown as { __irBridge: { messages: unknown[] } }).__irBridge.messages.length,
+    );
     expect(messagesBefore).toBe(0);
 
     // 3. Clicking selects only that post.
@@ -117,41 +165,225 @@ test.describe('InsightReply extension smoke test', () => {
     await firstButtons.first().click();
     await expect
       .poll(async () =>
-        page.evaluate(() => (window as unknown as { __irBridge: { messages: { type: string }[] } }).__irBridge.messages.length),
+        page.evaluate(
+          () =>
+            (window as unknown as { __irBridge: { messages: { type: string }[] } }).__irBridge
+              .messages.length,
+        ),
       )
       .toBeGreaterThan(0);
 
     const sent = await page.evaluate(
-      () => (window as unknown as { __irBridge: { messages: { type: string; post?: { postId?: string; authorName?: string; postText?: string } }[] } }).__irBridge.messages,
+      () =>
+        (
+          window as unknown as {
+            __irBridge: {
+              messages: {
+                type: string;
+                post?: { postId?: string; authorName?: string; postText?: string };
+              }[];
+            };
+          }
+        ).__irBridge.messages,
     );
     const selectMessage = sent.find((m) => m.type === 'IR_SELECT_POST');
     expect(selectMessage?.post?.postId).toBe('urn:li:activity:720123456789');
     expect(selectMessage?.post?.authorName).toBe('Ada Lovelace');
     expect(selectMessage?.post?.postText).toContain('analytics dashboard');
 
-    // 4. Truncated post shows the guidance toast and is not selected.
+    // 4. The icon-only LinkedIn layout selects the correct comment, not the
+    // blue Reply submit button inside the open composer.
+    const modernReplyButton = page.locator(
+      '.hashed-reply-composer button.insightreply-reply-button',
+    );
+    await expect(modernReplyButton).toHaveCount(1);
+    await modernReplyButton.click();
+    const modernSelection = await page.evaluate(() =>
+      (
+        window as unknown as {
+          __irBridge: {
+            messages: {
+              post?: { replyContext?: { authorName?: string; text?: string } };
+            }[];
+          };
+        }
+      ).__irBridge.messages.find(
+        (message) => message.post?.replyContext?.authorName === 'Itunuoluwa Akinkugbe',
+      ),
+    );
+    expect(modernSelection?.post?.replyContext?.text).toContain('API awareness improves');
+
+    // 5. In the current classless nested thread, the button belongs to the
+    // incoming reply rather than the user's outer parent comment, and is
+    // rendered inside the open composer beside LinkedIn's submit button.
+    await expect(
+      page.locator('.modern-parent-comment > .modern-parent-actions + .insightreply-reply-wrap'),
+    ).toHaveCount(0);
+    await expect(page.locator('.modern-incoming-actions + .insightreply-reply-wrap')).toHaveCount(
+      0,
+    );
+    const nestedReplyButton = page.locator(
+      '.modern-reply-composer button.insightreply-reply-button',
+    );
+    await expect(nestedReplyButton).toHaveCount(1);
+    await expect(
+      page.locator('.modern-reply-composer .insightreply-reply-wrap + .modern-reply-submit'),
+    ).toHaveCount(1);
+    await nestedReplyButton.click();
+    const nestedSelection = await page.evaluate(() =>
+      (
+        window as unknown as {
+          __irBridge: {
+            messages: {
+              post?: {
+                postId?: string;
+                replyContext?: {
+                  targetId?: string;
+                  authorName?: string;
+                  text?: string;
+                  parentCommentAuthorName?: string;
+                };
+              };
+            }[];
+          };
+        }
+      ).__irBridge.messages.find(
+        (message) => message.post?.replyContext?.authorName === 'Oyindamola Oye-Daniel',
+      ),
+    );
+    expect(nestedSelection?.post?.replyContext).toMatchObject({
+      authorName: 'Oyindamola Oye-Daniel',
+      text: 'Amazing, thanks for this beautiful contribution. 🙏',
+      parentCommentAuthorName: 'Itunuoluwa Akinkugbe',
+    });
+    expect(JSON.stringify(nestedSelection?.post?.replyContext)).not.toMatch(
+      /Senior Business Analyst|impressions|uhmmmmmm|reaction/,
+    );
+
+    const siblingReplyInsert = await page.evaluate(
+      async ({ postId, targetId }) => {
+        const bridge = (
+          window as unknown as {
+            __irBridge: {
+              listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown;
+            };
+          }
+        ).__irBridge;
+        return new Promise((resolve) => {
+          bridge.listener?.(
+            {
+              type: 'IR_INSERT_COMMENT',
+              postId,
+              replyTargetId: targetId,
+              text: 'Thank you, Oyindamola. I appreciate the thoughtful response.',
+              mode: 'append',
+            },
+            {},
+            (response) => resolve(response),
+          );
+        });
+      },
+      {
+        postId: nestedSelection?.post?.postId,
+        targetId: nestedSelection?.post?.replyContext?.targetId,
+      },
+    );
+    expect(siblingReplyInsert).toMatchObject({ ok: true, inserted: true });
+    await expect(page.locator('.modern-reply-composer [contenteditable="true"]')).toContainText(
+      'Thank you, Oyindamola. I appreciate the thoughtful response.',
+    );
+
+    // 6. Truncated post shows the guidance toast and is not selected.
     await page.evaluate(() => {
-      const buttons = Array.from(document.querySelectorAll<HTMLButtonElement>('button.insightreply-button'));
+      const buttons = Array.from(
+        document.querySelectorAll<HTMLButtonElement>('button.insightreply-button'),
+      );
       const truncated = document.querySelector('[data-id="urn:li:activity:112233"]');
       const button = buttons.find((b) => truncated?.contains(b));
       button?.click();
     });
     await expect(page.locator('.insightreply-toast')).toContainText('Expand the post first');
 
-    // 5. Insertion flows through the content-script message listener.
+    // 7. Insertion flows through the content-script message listener.
     const insertResult = await page.evaluate(async () => {
-      const bridge = (window as unknown as { __irBridge: { listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown } }).__irBridge;
+      const bridge = (
+        window as unknown as {
+          __irBridge: { listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown };
+        }
+      ).__irBridge;
       return new Promise((resolve) => {
         bridge.listener?.(
-          { type: 'IR_INSERT_COMMENT', postId: 'urn:li:activity:editor_1', text: 'Browser-level insertion test.', mode: 'auto' },
+          {
+            type: 'IR_INSERT_COMMENT',
+            postId: 'urn:li:activity:editor_1',
+            text: 'Browser-level insertion test.',
+            mode: 'auto',
+          },
           {},
           (response) => resolve(response),
         );
       });
     });
     expect(insertResult).toMatchObject({ ok: true, inserted: true, hadExistingText: false });
-    const editorText = await page.locator('[data-urn="urn:li:activity:editor_1"] .ql-editor').textContent();
+    const editorText = await page
+      .locator('[data-urn="urn:li:activity:editor_1"] .ql-editor')
+      .textContent();
     expect(editorText).toBe('Browser-level insertion test.');
+
+    // 8. Selecting and inserting a reply stays scoped to the targeted comment thread.
+    await page
+      .locator('[data-urn="urn:li:comment:incoming_1"] button.insightreply-reply-button')
+      .click();
+    const replySelection = await page.evaluate(() =>
+      (
+        window as unknown as {
+          __irBridge: {
+            messages: {
+              type: string;
+              post?: { replyContext?: { targetId?: string; authorName?: string; text?: string } };
+            }[];
+          };
+        }
+      ).__irBridge.messages.find(
+        (message) => message.post?.replyContext?.targetId === 'urn:li:comment:incoming_1',
+      ),
+    );
+    expect(replySelection).toMatchObject({
+      type: 'IR_SELECT_POST',
+      post: {
+        replyContext: {
+          targetId: 'urn:li:comment:incoming_1',
+          authorName: 'Grace Hopper',
+          text: 'How do you separate a weak request from an unmet need?',
+        },
+      },
+    });
+
+    const replyInsertResult = await page.evaluate(async () => {
+      const bridge = (
+        window as unknown as {
+          __irBridge: { listener?: (m: unknown, s: unknown, r: (x: unknown) => void) => unknown };
+        }
+      ).__irBridge;
+      return new Promise((resolve) => {
+        bridge.listener?.(
+          {
+            type: 'IR_INSERT_COMMENT',
+            postId: 'urn:li:activity:reply_post_1',
+            replyTargetId: 'urn:li:comment:incoming_1',
+            text: 'Browser-level reply insertion test.',
+            mode: 'auto',
+          },
+          {},
+          (response) => resolve(response),
+        );
+      });
+    });
+    expect(replyInsertResult).toMatchObject({ ok: true, inserted: true, hadExistingText: false });
+    const replyEditorText = await page
+      .locator('[data-urn="urn:li:comment:incoming_1"] .ql-editor')
+      .textContent();
+    expect(replyEditorText).toBe('Browser-level reply insertion test.');
 
     expect(pageErrors).toEqual([]);
     await page.close();
@@ -161,7 +393,9 @@ test.describe('InsightReply extension smoke test', () => {
     const page = await context.newPage();
     await page.addInitScript({ content: CHROME_STUB });
     await page.addInitScript({ path: join(EXTENSION_PATH, 'content.js') });
-    await page.goto(`data:text/html;charset=utf-8,${encodeURIComponent(`<main>${FEED_POST_CLASSIC}</main>`)}`);
+    await page.goto(
+      `data:text/html;charset=utf-8,${encodeURIComponent(`<main>${FEED_POST_CLASSIC}</main>`)}`,
+    );
 
     await expect
       .poll(async () => page.locator('button.insightreply-button').count(), { timeout: 5_000 })
@@ -178,5 +412,103 @@ test.describe('InsightReply extension smoke test', () => {
     const countAfterRescan = await page.locator('button.insightreply-button').count();
     expect(countAfterRescan).toBe(1);
     await page.close();
+  });
+
+  test('an already-open panel receives a reply selected through the real service worker', async () => {
+    const panel = await context.newPage();
+    const generationRequests: Array<{
+      post?: { text?: string };
+      reply?: { authorName?: string; text?: string };
+    }> = [];
+    await panel.route('https://insightreply-api.vercel.app/**', async (route) => {
+      const request = route.request();
+      if (!request.url().endsWith('/v1/comments/generate')) {
+        await route.continue();
+        return;
+      }
+      const body = request.postDataJSON() as (typeof generationRequests)[number];
+      generationRequests.push(body);
+      const replyText = body.reply?.text;
+      const text = replyText
+        ? 'Thank you, Oyindamola. I truly appreciate your thoughtful response.'
+        : 'You raise a compelling point about attribution and enabled outcomes.';
+      await route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          requestId: `req_${generationRequests.length}`,
+          postSummary: replyText ? 'Oyindamola thanked the user.' : 'A post about attribution.',
+          suggestions: [1, 2, 3].map((index) => ({
+            id: `suggestion_${generationRequests.length}_${index}`,
+            tone: 'professional',
+            text: `${text} ${index}`,
+          })),
+        }),
+      });
+    });
+    await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await expect(panel.getByText('No conversation selected')).toBeVisible();
+
+    // Seed and generate an old conversation first. Selecting Oyindamola's
+    // reply must clear these drafts so they cannot masquerade as her result.
+    await panel.evaluate(async () => {
+      await chrome.storage.session.set({
+        'insightReply.selectedPost': {
+          postId: 'urn:li:activity:old_attribution_post',
+          authorName: 'Product Leader',
+          postText: 'The shift from measurable deliverables to enabling intangible outcomes.',
+          selectedAt: new Date().toISOString(),
+        },
+      });
+    });
+    await expect(panel.getByText('Selected post')).toBeVisible();
+    await panel.getByRole('button', { name: 'Generate 3 Comments' }).click();
+    await expect(panel.getByText(/compelling point about attribution/).first()).toBeVisible();
+
+    const linkedin = await context.newPage();
+    await linkedin.route('https://www.linkedin.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html; charset=utf-8',
+        body: `<!doctype html><html><body><main>${POST_WITH_NATIVE_WRAPPED_STANDALONE_ELLIPSIS_REPLY_COMPOSER}</main></body></html>`,
+      });
+    });
+    await linkedin.goto('https://www.linkedin.com/feed/');
+
+    const aiReply = linkedin.locator('.modern-reply-composer button.insightreply-reply-button');
+    await expect(aiReply).toBeVisible({ timeout: 5_000 });
+    await aiReply.click();
+
+    await expect(panel.getByText('Reply conversation')).toBeVisible({ timeout: 5_000 });
+    await expect(panel.getByText('Reply from Oyindamola Oye-Daniel')).toBeVisible();
+    await expect(
+      panel.getByText('Amazing, thanks for this beautiful contribution. 🙏'),
+    ).toBeVisible();
+    await expect(panel.getByText(/compelling point about attribution/)).toHaveCount(0);
+    await expect(panel.getByText('Your comment')).toBeVisible();
+    await expect(
+      panel.getByText(
+        'I suspect the real challenge lies in measuring what you enable rather than what you deliver.',
+      ),
+    ).toBeVisible();
+    await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
+
+    await panel.getByRole('button', { name: 'Generate 3 Replies' }).click();
+    await expect(panel.getByText(/Thank you, Oyindamola/).first()).toBeVisible();
+    expect(generationRequests.at(-1)?.reply).toMatchObject({
+      authorName: 'Oyindamola Oye-Daniel',
+      text: 'Amazing, thanks for this beautiful contribution. 🙏',
+    });
+
+    // Regression: selecting the same reply again while the side panel is
+    // already open must synchronize silently. Chrome can reject a redundant
+    // sidePanel.open() call; that is not a selection failure and must not show
+    // the old "could not open" recovery toast.
+    await aiReply.click();
+    await expect(panel.getByText('Reply from Oyindamola Oye-Daniel')).toBeVisible();
+    await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
+
+    await linkedin.close();
+    await panel.close();
   });
 });

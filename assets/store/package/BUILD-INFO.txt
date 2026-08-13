@@ -1,13 +1,13 @@
 InsightReply — Chrome Web Store package
 
-name              InsightReply — AI Comment Assistant
-version           1.0.1
+name              InsightReply — AI Comment & Reply Assistant
+version           1.1.11
 manifest_version  3
 permissions       storage, activeTab, scripting, sidePanel
 host_permissions  https://*.linkedin.com/*
 
-default backend   https://insightreply-api.netlify.app
+default backend   https://insightreply-api.vercel.app
 files             10
-sha256            7dbd040762d9392ddee97391d7af146f69762549dfc2148483359992aeafd514
+sha256            763b6f3d4aa7122726a7d9753af7480051c41d4c9a4b664b88a31d892d2efcd1
 
 Ready to upload. Confirm the backend above is reachable over HTTPS first.

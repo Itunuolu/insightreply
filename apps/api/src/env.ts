@@ -63,5 +63,5 @@ export function loadEnv(): Env {
   if (!parsed.success) {
     throw new Error(`Invalid environment configuration: ${parsed.error.message}`);
   }
-  return parsed.data;
+  return parsed.data as Env;
 }

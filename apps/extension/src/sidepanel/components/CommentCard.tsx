@@ -13,7 +13,7 @@ interface CommentCardProps {
 }
 
 export function CommentCard({ draft, index }: CommentCardProps) {
-  const { setDraftText, copyDraft, insertDraft, regenerateDraft } = useApp();
+  const { state, setDraftText, copyDraft, insertDraft, regenerateDraft } = useApp();
   const charCount = draft.text.length;
 
   return (
@@ -52,7 +52,10 @@ export function CommentCard({ draft, index }: CommentCardProps) {
           <CardAction onClick={() => void copyDraft(draft.id)} label="Copy">
             <CopyIcon />
           </CardAction>
-          <CardAction onClick={() => void insertDraft(draft.id)} label="Insert into LinkedIn">
+          <CardAction
+            onClick={() => void insertDraft(draft.id)}
+            label={state.selectedPost?.replyContext ? 'Insert reply' : 'Insert into LinkedIn'}
+          >
             <InsertIcon />
           </CardAction>
         </div>

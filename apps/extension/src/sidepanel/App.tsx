@@ -23,7 +23,7 @@ function LogoMark({ className = 'h-8 w-8' }: { className?: string }) {
 }
 
 export function App() {
-  const { state, setView, showToast } = useApp();
+  const { state, setView } = useApp();
   const isSettings = state.view === 'settings';
 
   return (
@@ -45,7 +45,6 @@ export function App() {
               setView('generate');
             } else {
               setView('settings');
-              showToast('Settings apply to your next generation.');
             }
           }}
         >
@@ -59,7 +58,7 @@ export function App() {
 
       <footer className="border-t border-navy-700/60 px-4 py-2.5">
         <p className="text-center text-[10px] text-slate-500">
-          AI writing assistant · You review and post every comment
+          AI writing assistant · You review and post every suggestion
         </p>
       </footer>
 

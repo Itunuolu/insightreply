@@ -39,6 +39,20 @@ describe('parseMessage — runtime message validation', () => {
     }
   });
 
+  it('accepts an insert request targeted at a LinkedIn reply editor', () => {
+    const result = parseMessage({
+      type: 'IR_INSERT_COMMENT',
+      postId: 'urn:li:activity:1',
+      replyTargetId: 'urn:li:comment:2',
+      text: 'A contextual reply',
+      mode: 'auto',
+    });
+    expect(result.ok).toBe(true);
+    if (result.ok && result.message.type === 'IR_INSERT_COMMENT') {
+      expect(result.message.replyTargetId).toBe('urn:li:comment:2');
+    }
+  });
+
   it('rejects an insert message with an unknown mode', () => {
     const result = parseMessage({
       type: 'IR_INSERT_COMMENT',
@@ -77,6 +91,23 @@ describe('generateCommentsRequestSchema — panel-side payload validation', () =
         emojiPreference: 'none',
         customPerspective: 'Add a product lens',
         writingProfile: '',
+        suggestionCount: 3,
+      },
+    };
+    expect(generateCommentsRequestSchema.safeParse(input).success).toBe(true);
+  });
+
+  it('accepts the reply payload the panel builds', () => {
+    const input = {
+      post: { authorName: 'Ada', text: 'Hello LinkedIn' },
+      reply: {
+        authorName: 'Grace',
+        text: 'What changed after launch?',
+        parentCommentText: 'The user commented on product iteration.',
+      },
+      preferences: {
+        tone: 'insightful',
+        length: 'medium',
         suggestionCount: 3,
       },
     };

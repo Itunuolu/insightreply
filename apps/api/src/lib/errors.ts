@@ -14,8 +14,8 @@ export function registerErrorHandler(app: FastifyInstance): void {
 
     if (err instanceof ApiError) {
       const cause =
-        err.cause && typeof err.cause === 'object'
-          ? (err.cause as Record<string, unknown>)
+        err.upstreamCause && typeof err.upstreamCause === 'object'
+          ? (err.upstreamCause as Record<string, unknown>)
           : undefined;
       request.log.warn(
         {
@@ -23,7 +23,7 @@ export function registerErrorHandler(app: FastifyInstance): void {
           requestId,
           upstream: cause
             ? {
-                name: err.cause instanceof Error ? err.cause.name : undefined,
+                name: err.upstreamCause instanceof Error ? err.upstreamCause.name : undefined,
                 status: typeof cause.status === 'number' ? cause.status : undefined,
                 code: typeof cause.code === 'string' ? cause.code : undefined,
                 type: typeof cause.type === 'string' ? cause.type : undefined,

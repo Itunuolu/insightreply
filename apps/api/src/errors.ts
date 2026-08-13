@@ -12,15 +12,18 @@ export type ApiErrorCode =
   | 'INTERNAL_ERROR';
 
 export class ApiError extends Error {
+  public readonly upstreamCause?: unknown;
+
   constructor(
     public readonly statusCode: number,
     public readonly code: ApiErrorCode,
     message: string,
     public readonly publicMessage: string,
-    public override readonly cause?: unknown,
+    cause?: unknown,
   ) {
     super(message);
     this.name = 'ApiError';
+    this.upstreamCause = cause;
   }
 }
 

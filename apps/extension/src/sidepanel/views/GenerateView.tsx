@@ -16,6 +16,7 @@ export function GenerateView() {
     state;
 
   const hasPost = Boolean(selectedPost);
+  const isReply = Boolean(selectedPost?.replyContext);
 
   return (
     <div className="flex flex-col gap-4">
@@ -23,7 +24,7 @@ export function GenerateView() {
 
       <div>
         <SectionLabel>Tone</SectionLabel>
-        <div role="radiogroup" aria-label="Comment tone" className="flex flex-wrap gap-1.5">
+        <div role="radiogroup" aria-label="Suggestion tone" className="flex flex-wrap gap-1.5">
           {TONES.map((tone) => (
             <ToneChip
               key={tone}
@@ -43,7 +44,7 @@ export function GenerateView() {
       <div>
         <SectionLabel>Perspective</SectionLabel>
         <label htmlFor="perspective" className="sr-only">
-          What perspective should the comment include?
+          What perspective should the suggestion include?
         </label>
         <textarea
           id="perspective"
@@ -66,22 +67,23 @@ export function GenerateView() {
         className="w-full"
       >
         {hasPost ? (
-          <>Generate {settings.suggestionCount} Comments</>
+          <>Generate {settings.suggestionCount} {isReply ? 'Replies' : 'Comments'}</>
         ) : (
-          <>Generate Comments</>
+          <>Generate Suggestions</>
         )}
       </Button>
 
       {!hasPost && (
         <p className="text-center text-xs font-medium text-slate-400">
-          Select a post on LinkedIn first — click{' '}
+          Select a post or reply on LinkedIn first — click{' '}
           <span className="font-semibold text-gold-light">✨ AI Comment</span> on any post. The
-          button appears near a post's engagement bar.
+          button appears near a post's engagement bar, or use{' '}
+          <span className="font-semibold text-gold-light">✨ AI Reply</span> beside a reply.
         </p>
       )}
 
       <p className="text-center text-[11px] leading-relaxed text-slate-400">
-        InsightReply generates writing suggestions. Review every comment before posting.
+        InsightReply generates writing suggestions. Review every {isReply ? 'reply' : 'comment'} before posting.
       </p>
 
       {generationStatus === 'generating' && <LoadingState label="Generating suggestions…" />}
@@ -92,11 +94,11 @@ export function GenerateView() {
 
       {generationStatus === 'idle' && result === null && (
         <EmptyState
-          title={hasPost ? 'Ready when you are' : 'Start with a LinkedIn post'}
+          title={hasPost ? 'Ready when you are' : 'Start with a LinkedIn conversation'}
           body={
             hasPost
-              ? 'Choose a tone and length, then generate comment suggestions for the selected post.'
-              : 'Open LinkedIn, click the ✨ AI Comment button on a post, and the panel will fill in here automatically.'
+              ? `Choose a tone and length, then generate ${isReply ? 'reply' : 'comment'} suggestions for the selected conversation.`
+              : 'Open LinkedIn, click ✨ AI Comment on a post or ✨ AI Reply beside a reply, and the panel will fill in automatically.'
           }
         />
       )}

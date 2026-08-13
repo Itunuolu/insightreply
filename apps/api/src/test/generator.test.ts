@@ -1,7 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { CommentGenerator } from '../ai/comment-generator.js';
 import { ApiError } from '../errors.js';
-import { makeFakeClient, validRequest, validSuggestionsJson } from './helpers.js';
+import {
+  makeFakeClient,
+  validReplyRequest,
+  validReplySuggestionsJson,
+  validRequest,
+  validSuggestionsJson,
+} from './helpers.js';
 
 describe('CommentGenerator', () => {
   it('parses a valid structured response into suggestions', async () => {
@@ -99,6 +105,43 @@ describe('CommentGenerator', () => {
       preferences: { ...validRequest().preferences, suggestionCount: 3 },
     });
     expect(result.suggestions).toHaveLength(3);
+  });
+
+  it('rejects post-style suggestions that ignore an appreciative incoming reply', async () => {
+    const client = makeFakeClient(async () => ({ output_text: validSuggestionsJson(3) }));
+    const generator = new CommentGenerator({ client, model: 'gpt-test' });
+    const request = {
+      ...validReplyRequest(),
+      reply: {
+        authorName: 'Oyindamola Oye-Daniel',
+        text: 'Amazing, thanks for this beautiful contribution 🙏',
+        parentCommentAuthorName: 'You',
+        parentCommentText: 'Leadership impact includes what you enable others to achieve.',
+      },
+    };
+
+    await expect(generator.generate(request)).rejects.toMatchObject({
+      code: 'GENERATION_REJECTED',
+    });
+  });
+
+  it('accepts suggestions that directly acknowledge an appreciative incoming reply', async () => {
+    const client = makeFakeClient(async () => ({ output_text: validReplySuggestionsJson(3) }));
+    const generator = new CommentGenerator({ client, model: 'gpt-test' });
+    const result = await generator.generate({
+      ...validReplyRequest(),
+      reply: {
+        authorName: 'Oyindamola Oye-Daniel',
+        text: 'Amazing, thanks for this beautiful contribution 🙏',
+        parentCommentAuthorName: 'You',
+        parentCommentText: 'Leadership impact includes what you enable others to achieve.',
+      },
+    });
+
+    expect(result.suggestions).toHaveLength(3);
+    expect(result.suggestions.every((suggestion) => /thank|appreciat/i.test(suggestion.text))).toBe(
+      true,
+    );
   });
 
   it('exposes an ApiError with a public message that hides internals', async () => {
