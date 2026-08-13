@@ -365,4 +365,34 @@ test.describe('InsightReply extension smoke test', () => {
     expect(countAfterRescan).toBe(1);
     await page.close();
   });
+
+  test('an already-open panel receives a reply selected through the real service worker', async () => {
+    const panel = await context.newPage();
+    await panel.goto(`chrome-extension://${extensionId}/sidepanel.html`);
+    await expect(panel.getByText('No conversation selected')).toBeVisible();
+
+    const linkedin = await context.newPage();
+    await linkedin.route('https://www.linkedin.com/**', async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: 'text/html',
+        body: `<!doctype html><html><body><main>${POST_WITH_MODERN_NESTED_REPLY_COMPOSER}</main></body></html>`,
+      });
+    });
+    await linkedin.goto('https://www.linkedin.com/feed/');
+
+    const aiReply = linkedin.locator(
+      '.modern-reply-composer button.insightreply-reply-button',
+    );
+    await expect(aiReply).toBeVisible({ timeout: 5_000 });
+    await aiReply.click();
+
+    await expect(panel.getByText('Reply conversation')).toBeVisible({ timeout: 5_000 });
+    await expect(panel.getByText('Reply from Oyindamola Oye-Daniel')).toBeVisible();
+    await expect(panel.getByText('Amazing, thanks for this beautiful contribution.')).toBeVisible();
+    await expect(linkedin.locator('.insightreply-toast')).toHaveCount(0);
+
+    await linkedin.close();
+    await panel.close();
+  });
 });

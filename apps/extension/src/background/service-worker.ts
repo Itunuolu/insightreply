@@ -6,6 +6,15 @@ const SESSION_KEYS = {
   selectedTabId: 'insightReply.selectedTabId',
 } as const;
 
+const SIDE_PANEL_PORT = 'insightreply-sidepanel';
+const connectedPanels = new Set<chrome.runtime.Port>();
+
+chrome.runtime.onConnect.addListener((port) => {
+  if (port.name !== SIDE_PANEL_PORT) return;
+  connectedPanels.add(port);
+  port.onDisconnect.addListener(() => connectedPanels.delete(port));
+});
+
 chrome.runtime.onInstalled.addListener(() => {
   void chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true });
 });
@@ -34,6 +43,10 @@ async function handleSelectPost(
     [SESSION_KEYS.selectedPost]: parsed.data,
     [SESSION_KEYS.selectedTabId]: sender.tab?.id ?? null,
   });
+
+  // The panel may already be open. Calling sidePanel.open() again can be
+  // rejected by Chrome even though selection storage and panel sync succeeded.
+  if (connectedPanels.size > 0) return { ok: true, opened: true };
 
   // Opening the panel is best-effort: Chrome rejects sidePanel.open() outside a
   // user gesture, and that raw API string used to surface as the user-facing

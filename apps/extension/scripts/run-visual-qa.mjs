@@ -154,27 +154,6 @@ audits.narrowReply = await auditPanel(panel, 'selected-reply-narrow', 320, 720);
 
 const linkedin = await context.newPage();
 await linkedin.setViewportSize({ width: 1200, height: 900 });
-await linkedin.addInitScript({
-  content: `
-    window.__irBridge = { messages: [] };
-    window.chrome = {
-      runtime: {
-        id: 'test-extension-id',
-        sendMessage: (message) => {
-          window.__irBridge.messages.push(message);
-          return Promise.resolve({ ok: true, opened: true });
-        },
-        onMessage: { addListener: () => {}, removeListener: () => {} }
-      },
-      storage: {
-        session: { get: async () => ({}), set: async () => {}, remove: async () => {} },
-        sync: { get: async () => ({}), set: async () => {}, remove: async () => {} },
-        onChanged: { addListener: () => {}, removeListener: () => {} }
-      }
-    };
-  `,
-});
-await linkedin.addInitScript({ path: join(extensionPath, 'content.js') });
 
 const fixture = `<!doctype html>
 <html>
@@ -247,13 +226,24 @@ const fixture = `<!doctype html>
   </body>
 </html>`;
 
-await linkedin.goto(`data:text/html;charset=utf-8,${encodeURIComponent(fixture)}`);
+await panel.evaluate(async () => {
+  await chrome.storage.session.remove('insightReply.selectedPost');
+});
+await panel.getByText('No conversation selected').waitFor();
+await linkedin.route('https://www.linkedin.com/**', async (route) => {
+  await route.fulfill({ status: 200, contentType: 'text/html', body: fixture });
+});
+await linkedin.goto('https://www.linkedin.com/feed/');
 await linkedin.locator('button.insightreply-reply-button').last().waitFor();
 await linkedin.screenshot({
   path: join(output, '09-linkedin-reply-controls-1200x900.png'),
   fullPage: true,
 });
 await linkedin.locator('button.insightreply-reply-button').click();
+await panel.getByText('Reply from Oyindamola Oye-Daniel').waitFor({ timeout: 5_000 });
+await panel.screenshot({
+  path: join(output, '10-live-reply-selection-360x800.png'),
+});
 audits.linkedin = await linkedin.evaluate(() => {
   const suspiciousCodePoints = ['\u00e2', '\u00c2', '\u00f0', '\ufffd'];
   const buttons = Array.from(
@@ -290,14 +280,19 @@ audits.linkedin = await linkedin.evaluate(() => {
         document.querySelector('.modern-incoming-reply .modern-actions + .insightreply-reply-wrap'),
       ),
     },
-    selectedReply: globalThis.__irBridge.messages.find(
-      (message) => message.post?.replyContext,
-    )?.post?.replyContext ?? null,
+    noMisleadingToast: !document.querySelector('.insightreply-toast'),
     corruptText: suspiciousCodePoints.some((value) =>
       document.body.innerText.includes(value),
     ),
   };
 });
+audits.linkedin.selectedReply = await panel.evaluate(async () => {
+  const stored = await chrome.storage.session.get('insightReply.selectedPost');
+  return stored['insightReply.selectedPost']?.replyContext ?? null;
+});
+audits.linkedin.panelSynced = await panel
+  .getByText('Reply from Oyindamola Oye-Daniel')
+  .isVisible();
 
 if (
   audits.linkedin.buttonCount !== 1 ||
@@ -305,6 +300,8 @@ if (
   !audits.linkedin.placement.immediatelyBeforeSubmit ||
   audits.linkedin.placement.attachedToParentAction ||
   audits.linkedin.placement.attachedToIncomingAction ||
+  !audits.linkedin.noMisleadingToast ||
+  !audits.linkedin.panelSynced ||
   audits.linkedin.selectedReply?.authorName !== 'Oyindamola Oye-Daniel' ||
   audits.linkedin.selectedReply?.parentCommentAuthorName !== 'Itunuoluwa Akinkugbe'
 ) {

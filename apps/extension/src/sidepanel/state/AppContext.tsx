@@ -217,6 +217,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(reducer, DEFAULT_SETTINGS, initialState);
 
   useEffect(() => {
+    const panelPort =
+      typeof chrome.runtime.connect === 'function'
+        ? chrome.runtime.connect({ name: 'insightreply-sidepanel' })
+        : null;
     let disposed = false;
     void loadSettings().then((settings) => {
       if (!disposed) dispatch({ type: 'SET_SETTINGS', settings });
@@ -230,6 +234,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => {
       disposed = true;
       unsubscribe();
+      panelPort?.disconnect();
     };
   }, []);
 
