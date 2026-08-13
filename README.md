@@ -222,9 +222,32 @@ pnpm package:extension
 # → dist/insightreply-extension.zip
 ```
 
-## 15. Deploying the backend
+## 15. Deploying the backend to Vercel
 
-The API is a plain Fastify service (`pnpm --filter @insightreply/api build && pnpm --filter @insightreply/api start`). Deploy to any Node host (Railway, Render, Fly.io, a VPS…), set the same env vars, and serve it behind HTTPS for production. Update the **Backend API URL** in the extension settings (or the default in `packages/shared`) to your deployed URL, and set `ALLOWED_EXTENSION_ORIGIN` to your extension origin.
+The production API is deployed from the monorepo root using `vercel.json` and the
+serverless entrypoint in `api/index.ts`.
+
+```bash
+vercel link --project insightreply-api
+vercel env add OPENAI_API_KEY production,preview
+vercel env add OPENAI_BASE_URL production,preview
+vercel env add OPENAI_MODEL production,preview
+vercel env add ALLOWED_EXTENSION_ORIGIN production,preview,development --no-sensitive
+vercel deploy --prod
+```
+
+Keep provider credentials in Vercel only; never put them in the extension or
+repository. The published Chrome origin is
+`chrome-extension://beibbhgjopabhoilhpjmekecnbegpllc`. The current production
+API and privacy policy are available at:
+
+- `https://insightreply-api.vercel.app/health`
+- `https://insightreply-api.vercel.app/privacy-policy/`
+
+Build each Web Store package with
+`IR_DEFAULT_BACKEND_URL=https://insightreply-api.vercel.app`. Version 1.1.9 also
+migrates the former official Netlify URL from Chrome sync storage while
+preserving user-configured custom backends.
 
 ## 16. Updating LinkedIn selectors
 

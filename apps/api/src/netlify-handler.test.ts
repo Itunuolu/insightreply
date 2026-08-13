@@ -1,12 +1,16 @@
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { buildApp } from './app.js';
-import { createNetlifyHandler, type NetlifyRequestHandler } from './netlify-handler.js';
+import {
+  createServerlessHandler,
+  forwardedClientIp,
+  type ServerlessRequestHandler,
+} from './serverless-handler.js';
 import { makeFakeClient, makeTestEnv } from './test/helpers.js';
 
-describe('Netlify function adapter', () => {
+describe('web-standard serverless function adapter', () => {
   let app: FastifyInstance;
-  let handler: NetlifyRequestHandler;
+  let handler: ServerlessRequestHandler;
 
   beforeAll(async () => {
     app = await buildApp({
@@ -14,7 +18,7 @@ describe('Netlify function adapter', () => {
       client: makeFakeClient(vi.fn()),
       logger: false,
     });
-    handler = createNetlifyHandler(Promise.resolve(app));
+    handler = createServerlessHandler(Promise.resolve(app));
   });
 
   afterAll(async () => {
@@ -22,7 +26,7 @@ describe('Netlify function adapter', () => {
   });
 
   it('serves the Fastify health route at its public URL', async () => {
-    const response = await handler(new Request('https://insightreply.netlify.app/health'), {
+    const response = await handler(new Request('https://insightreply-api.vercel.app/health'), {
       ip: '203.0.113.9',
     });
 
@@ -35,7 +39,7 @@ describe('Netlify function adapter', () => {
 
   it('preserves CORS preflight headers for the published extension', async () => {
     const response = await handler(
-      new Request('https://insightreply.netlify.app/v1/comments/generate', {
+      new Request('https://insightreply-api.vercel.app/v1/comments/generate', {
         method: 'OPTIONS',
         headers: {
           origin: 'chrome-extension://published-id',
@@ -53,7 +57,7 @@ describe('Netlify function adapter', () => {
 
   it('returns Fastify validation errors through the web-standard response', async () => {
     const response = await handler(
-      new Request('https://insightreply.netlify.app/v1/comments/generate', {
+      new Request('https://insightreply-api.vercel.app/v1/comments/generate', {
         method: 'POST',
         headers: {
           'content-type': 'application/json',
@@ -68,5 +72,13 @@ describe('Netlify function adapter', () => {
     await expect(response.json()).resolves.toMatchObject({
       error: { code: 'VALIDATION_ERROR' },
     });
+  });
+
+  it('uses the first forwarded address as the client IP', () => {
+    const request = new Request('https://insightreply-api.vercel.app/health', {
+      headers: { 'x-forwarded-for': '203.0.113.9, 10.0.0.4' },
+    });
+
+    expect(forwardedClientIp(request)).toBe('203.0.113.9');
   });
 });

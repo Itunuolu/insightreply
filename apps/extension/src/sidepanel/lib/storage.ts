@@ -4,6 +4,13 @@ import { BUILD_DEFAULT_SETTINGS as DEFAULT_SETTINGS } from './config.js';
 
 const SETTINGS_KEY = 'insightReplySettings';
 const SELECTED_POST_KEY = 'insightReply.selectedPost';
+const LEGACY_OFFICIAL_BACKEND_URLS = new Set(['https://insightreply-api.netlify.app']);
+
+function migrateOfficialBackend(settings: Settings): Settings {
+  const normalizedBackendUrl = settings.backendUrl.replace(/\/+$/, '');
+  if (!LEGACY_OFFICIAL_BACKEND_URLS.has(normalizedBackendUrl)) return settings;
+  return { ...settings, backendUrl: DEFAULT_SETTINGS.backendUrl };
+}
 
 /** Loads settings from chrome.storage.sync, falling back to defaults. */
 export async function loadSettings(): Promise<Settings> {
@@ -12,7 +19,16 @@ export async function loadSettings(): Promise<Settings> {
     const value = stored[SETTINGS_KEY];
     if (value === undefined || value === null) return { ...DEFAULT_SETTINGS };
     const parsed = settingsSchema.safeParse(value);
-    return parsed.success ? parsed.data : { ...DEFAULT_SETTINGS };
+    if (!parsed.success) return { ...DEFAULT_SETTINGS };
+    const settings = migrateOfficialBackend(parsed.data);
+    if (settings !== parsed.data) {
+      try {
+        await chrome.storage.sync.set({ [SETTINGS_KEY]: settings });
+      } catch {
+        // Keep the in-memory migration even when sync storage is temporarily unavailable.
+      }
+    }
+    return settings;
   } catch {
     return { ...DEFAULT_SETTINGS };
   }
@@ -55,10 +71,7 @@ export async function clearSelectedPost(): Promise<void> {
  * select a new post while the panel is open). Returns an unsubscribe fn.
  */
 export function watchSelectedPost(callback: (post: SelectedPost | null) => void): () => void {
-  const listener = (
-    changes: Record<string, chrome.storage.StorageChange>,
-    areaName: string,
-  ) => {
+  const listener = (changes: Record<string, chrome.storage.StorageChange>, areaName: string) => {
     if (areaName !== 'session') return;
     const change = changes[SELECTED_POST_KEY];
     if (!change) return;

@@ -200,7 +200,7 @@ export class CommentGenerator {
     if (result.data.suggestions.length < suggestionCount) return null;
     return {
       postSummary: result.data.postSummary,
-      suggestions: result.data.suggestions,
+      suggestions: result.data.suggestions as SuggestionItem[],
     };
   }
 

@@ -12,7 +12,7 @@ one until you read that file.
 ## Rebuilding
 
 ```bash
-IR_DEFAULT_BACKEND_URL=https://your-backend.example.com \
+IR_DEFAULT_BACKEND_URL=https://insightreply-api.vercel.app \
   pnpm build:extension && pnpm package:extension
 cp dist/insightreply-extension.zip dist/BUILD-INFO.txt assets/store/package/
 ```
